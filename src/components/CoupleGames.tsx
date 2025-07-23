@@ -33,6 +33,19 @@ interface GameStreak {
   totalQuestionsAnswered: number
 }
 
+interface GameResponse {
+  id: string;
+  question: string;
+  answer: string;
+  date: string;
+  category: string;
+  user_id: string;
+  profiles: {
+    id: string;
+    name: string;
+  };
+}
+
 /* ───────────────── Preguntas ─────────────────── */
 const coupleQuestions: GameQuestion[] = [
   // Deep questions
@@ -96,6 +109,9 @@ export const CoupleGames: React.FC = () => {
     totalQuestionsAnswered: 0
   })
   const [answeredToday, setAnsweredToday] = useState(false)
+  const [gameResponses, setGameResponses] = useState<any[]>([]);
+  const [userAnswer, setUserAnswer] = useState('');
+  const [reactions, setReactions] = useState<Record<string, { emoji: string; count: number; reacted: boolean }[]>>({});
 
   /* ────── verifica vínculo de pareja ────── */
   useEffect(() => {
@@ -114,6 +130,157 @@ export const CoupleGames: React.FC = () => {
     }
     fetchPartner()
   }, [user])
+
+  /* ────── carga respuestas de juegos ────── */
+  useEffect(() => {
+    const fetchPartnerAndResponses = async () => {
+      if (!user) {
+        setPartnerLinked(false)
+        return
+      }
+
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('partner_id')
+        .eq('id', user.id)
+        .single()
+
+      if (error) {
+        console.error(error)
+        return
+      }
+
+      const partnerId = profile?.partner_id
+      setPartnerLinked(!!partnerId)
+      const userIds = [user.id, partnerId].filter(Boolean) as string[];
+
+      const { data: responses, error: respError } = await supabase
+        .from('game_responses')
+        .select(`
+    id,
+    question,
+    answer,
+    date,
+    category,
+    user_id,
+    profiles (
+      id,
+      name
+    )
+  `)
+        .in('user_id', userIds)
+        .order('date', { ascending: false });
+
+      if (respError) {
+        console.error(respError)
+      } else {
+        setGameResponses(responses)
+      }
+    }
+
+    fetchPartnerAndResponses()
+  }, [user])
+
+
+  /* ────── carga reacciones ────── */
+  useEffect(() => {
+    if (!user || gameResponses.length === 0) return;
+
+    const loadReactions = async () => {
+      const { data, error } = await supabase
+        .from('game_reactions')
+        .select('response_id, emoji, user_id');
+
+      if (error) {
+        console.error('Error loading reactions:', error);
+        return;
+      }
+
+      const grouped: Record<string, { emoji: string; count: number; reacted: boolean }[]> = {};
+
+      for (const res of gameResponses) {
+        const responseReactions = data.filter(r => r.response_id === res.id);
+        const byEmoji: Record<string, { count: number; reacted: boolean }> = {};
+
+        for (const r of responseReactions) {
+          if (!byEmoji[r.emoji]) {
+            byEmoji[r.emoji] = { count: 0, reacted: false };
+          }
+          byEmoji[r.emoji].count += 1;
+          if (r.user_id === user.id) byEmoji[r.emoji].reacted = true;
+        }
+
+        grouped[res.id] = Object.entries(byEmoji).map(([emoji, val]) => ({
+          emoji,
+          count: val.count,
+          reacted: val.reacted
+        }));
+      }
+
+      setReactions(grouped);
+    };
+
+    loadReactions();
+  }, [user, gameResponses]);
+
+
+  const toggleReaction = async (responseId: string, emoji: string) => {
+    const existing = reactions[responseId]?.find(r => r.emoji === emoji && r.reacted);
+
+    if (existing) {
+      // Remove reaction
+      const { error } = await supabase
+        .from('game_reactions')
+        .delete()
+        .eq('response_id', responseId)
+        .eq('user_id', user.id)
+        .eq('emoji', emoji);
+
+      if (!error) {
+        setReactions(prev => ({
+          ...prev,
+          [responseId]: prev[responseId]
+            .map(r =>
+              r.emoji === emoji
+                ? { ...r, count: r.count - 1, reacted: false }
+                : r
+            )
+            .filter(r => r.count > 0)
+        }));
+      }
+    } else {
+      // Add reaction
+      const { error } = await supabase.from('game_reactions').insert({
+        response_id: responseId,
+        user_id: user.id,
+        emoji
+      });
+
+      if (!error) {
+        setReactions(prev => {
+          const current = prev[responseId] || [];
+          const found = current.find(r => r.emoji === emoji);
+
+          if (found) {
+            return {
+              ...prev,
+              [responseId]: current.map(r =>
+                r.emoji === emoji
+                  ? { ...r, count: r.count + 1, reacted: true }
+                  : r
+              )
+            };
+          } else {
+            return {
+              ...prev,
+              [responseId]: [...current, { emoji, count: 1, reacted: true }]
+            };
+          }
+        });
+      }
+    }
+  };
+
 
   /* ────── carga progreso local ────── */
   useEffect(() => {
@@ -141,19 +308,19 @@ export const CoupleGames: React.FC = () => {
     setCurrentQuestion(getRandomQuestion())
   }
 
-  const markQuestionAnswered = () => {
-    if (!user || !currentQuestion) return
+  const markQuestionAnswered = async () => {
+    if (!user || !currentQuestion || !userAnswer.trim()) return;
 
-    const today = new Date().toISOString().split('T')[0]
-    const yesterday = new Date()
-    yesterday.setDate(yesterday.getDate() - 1)
-    const yesterdayStr = yesterday.toISOString().split('T')[0]
+    const today = new Date().toISOString().split('T')[0];
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
 
-    let newStreak = gameStreak.currentStreak
+    let newStreak = gameStreak.currentStreak;
     if (gameStreak.lastPlayedDate === yesterdayStr || gameStreak.lastPlayedDate === '') {
-      newStreak += 1
+      newStreak += 1;
     } else if (gameStreak.lastPlayedDate !== today) {
-      newStreak = 1
+      newStreak = 1;
     }
 
     const updated: GameStreak = {
@@ -161,14 +328,47 @@ export const CoupleGames: React.FC = () => {
       longestStreak: Math.max(newStreak, gameStreak.longestStreak),
       lastPlayedDate: today,
       totalQuestionsAnswered: gameStreak.totalQuestionsAnswered + 1
+    };
+
+    setGameStreak(updated);
+    setAnsweredToday(true);
+    localStorage.setItem(`coupleGame_${user.id}`, JSON.stringify(updated));
+    toast.success(`Great! Your streak is now ${newStreak} days! 🔥`);
+
+    const { error } = await supabase.from('game_responses').insert({
+      user_id: user.id,
+      question_id: currentQuestion.id,
+      question: currentQuestion.question,
+      category: currentQuestion.category,
+      answer: userAnswer.trim(),
+      date: today,
+      is_private: false
+    });
+
+    if (error) {
+      console.error('Error saving game response:', error);
+    } else {
+      setGameResponses(prev => [
+        {
+          id: crypto.randomUUID(),
+          user_id: user.id,
+          question_id: currentQuestion.id,
+          question: currentQuestion.question,
+          category: currentQuestion.category,
+          answer: userAnswer.trim(),
+          date: today,
+          created_at: new Date().toISOString(),
+          is_private: false
+        },
+        ...prev
+      ]);
     }
 
-    setGameStreak(updated)
-    setAnsweredToday(true)
-    localStorage.setItem(`coupleGame_${user.id}`, JSON.stringify(updated))
-    toast.success(`Great! Your streak is now ${newStreak} days! 🔥`)
-    setCurrentQuestion(null)
-  }
+    setCurrentQuestion(null);
+    setUserAnswer('');
+  };
+
+
 
   const getNextQuestion = () => setCurrentQuestion(getRandomQuestion())
 
@@ -233,19 +433,32 @@ export const CoupleGames: React.FC = () => {
               </p>
             </div>
 
-            <div className="flex space-x-3">
-              <Button
-                onClick={markQuestionAnswered}
-                className="flex-1"
+            <div className="space-y-3">
+              <textarea
+                placeholder="Write your answer here..."
+                value={userAnswer}
+                onChange={(e) => setUserAnswer(e.target.value)}
+                className="w-full p-3 border rounded-md resize-none min-h-[100px]"
                 disabled={answeredToday}
-              >
-                <Star className="h-4 w-4 mr-2" />
-                {answeredToday ? 'Already Played Today!' : 'We Discussed This!'}
-              </Button>
-              <Button variant="outline" onClick={() => setCurrentQuestion(null)}>
-                Skip
-              </Button>
+              />
+
+              <div className="flex space-x-3">
+                <Button
+                  onClick={markQuestionAnswered}
+                  className="flex-1"
+                  disabled={answeredToday || !userAnswer.trim()}
+                >
+                  <Star className="h-4 w-4 mr-2" />
+                  {answeredToday ? 'Already Played Today!' : 'Submit Answer'}
+                </Button>
+
+                <Button variant="outline" onClick={() => setCurrentQuestion(null)}>
+                  Skip
+                </Button>
+              </div>
             </div>
+
+
 
             {answeredToday && (
               <div className="text-center p-4 bg-green-50 rounded-lg">
@@ -277,10 +490,10 @@ export const CoupleGames: React.FC = () => {
                 </div>
               ) : null}
 
-              <Button 
-                onClick={startGame} 
+              <Button
+                onClick={startGame}
                 size="lg"
-                disabled={ answeredToday}
+                disabled={answeredToday}
                 className="min-w-[200px]"
               >
                 {answeredToday ? 'Come Back Tomorrow' : 'Start Daily Question'}
@@ -305,6 +518,59 @@ export const CoupleGames: React.FC = () => {
             )}
           </div>
         )}
+        {gameResponses.length > 0 && (
+          <div className="mt-8 space-y-4">
+            <h3 className="text-md font-semibold">Past Questions Discussed</h3>
+            <ul className="space-y-3">
+              {gameResponses.map((res) => (
+                <li key={res.id} className="p-4 border rounded-lg bg-white shadow-sm">
+
+                  <div className="text-sm text-muted-foreground">
+                    Answered by <strong>{res.profiles.name}</strong> on{' '}
+                    {new Date(res.date).toLocaleDateString()}
+                  </div>
+
+                  <p className="text-md font-medium mt-1">{res.question}</p>
+                  {res.answer && (
+                    <p className="text-sm text-gray-700 mt-2 border-t pt-2 italic">
+                      📝 {res.answer}
+                    </p>
+                  )}
+                  <div className="flex items-center gap-2 mt-2 flex-wrap">
+                    {(reactions[res.id] || []).map(r => (
+                      <button
+                        key={r.emoji}
+                        onClick={() => toggleReaction(res.id, r.emoji)}
+                        className={`text-lg px-2 py-1 rounded-full border flex items-center ${r.reacted ? 'bg-pink-100 border-pink-300' : 'bg-white'
+                          }`}
+                      >
+                        {r.emoji} <span className="ml-1 text-xs">{r.count}</span>
+                      </button>
+                    ))}
+
+                    {/* botones para nuevas reacciones */}
+                    {['❤️', '😆', '😮', '😢', '👏'].map(e => (
+                      <button
+                        key={e}
+                        onClick={() => toggleReaction(res.id, e)}
+                        className="text-lg px-2 py-1 rounded-full hover:bg-gray-100"
+                      >
+                        {e}
+                      </button>
+                    ))}
+                  </div>
+
+                  <span
+                    className={`text-xs inline-block mt-2 px-2 py-1 rounded-full capitalize ${categoryColors[res.category as GameQuestion['category']]}`}
+                  >
+                    {categoryEmojis[res.category as GameQuestion['category']]} {res.category}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
       </CardContent>
     </Card>
   );
