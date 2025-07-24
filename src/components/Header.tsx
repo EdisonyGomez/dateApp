@@ -1,6 +1,7 @@
+// src/components/Header.tsx
 import React, { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,6 +12,7 @@ import {
 import { useAuth } from '@/contexts/AuthProvider'
 import { supabase } from '@/lib/supabase'
 import { Heart, LogOut, PlusCircle, User, Users } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
 interface HeaderProps {
   onNewEntry: () => void
@@ -18,8 +20,10 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ onNewEntry, onShowPartnerLink }) => {
-  const { user, loading, signOut } = useAuth()
+  const { user, loading, signOut, partner, profile } = useAuth()
   const [partnerName, setPartnerName] = useState<string | null>(null)
+
+  const navigate = useNavigate()
 
   /* ──────── traer nombre de pareja ──────── */
   useEffect(() => {
@@ -63,8 +67,9 @@ export const Header: React.FC<HeaderProps> = ({ onNewEntry, onShowPartnerLink })
             <Heart className="h-8 w-8 text-pink-500" />
             <div>
               <h1 className="text-xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
-                Couples Diary
+                M.Y. Diary
               </h1>
+
               {partnerName && (
                 <p className="text-xs text-muted-foreground">Connected with {partnerName}</p>
               )}
@@ -89,11 +94,15 @@ export const Header: React.FC<HeaderProps> = ({ onNewEntry, onShowPartnerLink })
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+
                   <Avatar className="h-8 w-8">
-                    <AvatarFallback className="bg-blue-100 text-blue-700">
-                      {initial}
-                    </AvatarFallback>
+                    {profile?.avatar_url ? (
+                      <AvatarImage src={profile.avatar_url} alt="Avatar" />
+                    ) : (
+                      <AvatarFallback className="bg-blue-100 text-blue-700">{initial}</AvatarFallback>
+                    )}
                   </Avatar>
+
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56" align="end" forceMount>
@@ -110,6 +119,18 @@ export const Header: React.FC<HeaderProps> = ({ onNewEntry, onShowPartnerLink })
                     <p className="text-xs text-muted-foreground truncate max-w-[120px]">{user?.email}</p>
                   </div>
                 </div>
+
+                <DropdownMenuSeparator />
+
+                {/* ✅ NUEVO ITEM: Ir al perfil */}
+                <DropdownMenuItem
+                  onClick={() => navigate('/profile')}
+                  className="cursor-pointer"
+                >
+                  <User className="mr-2 h-4 w-4" />
+                  <span>Editar perfil</span>
+                </DropdownMenuItem>
+
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={signOut} className="cursor-pointer">
                   <LogOut className="mr-2 h-4 w-4" />

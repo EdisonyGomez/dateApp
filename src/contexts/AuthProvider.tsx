@@ -1,3 +1,4 @@
+// src/contexts/AuthProvider.tsx
 import React, {
   createContext,
   useContext,
@@ -8,28 +9,7 @@ import React, {
 import { Session, User as SupabaseUser } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import { useQuery } from '@tanstack/react-query'
-
-// Tipos para tu tabla profiles
-interface Profile {
-  partner_id: string | null
-  name: string
-}
-
-// Lo que expondrás como pareja al resto de la app
-interface Partner {
-  id: string
-  name: string
-}
-
-interface AuthContextType {
-  user: SupabaseUser | null
-  session: Session | null
-  partner: Partner | null
-  loading: boolean
-  signUp: (email: string, password: string, name: string) => Promise<void>
-  signIn: (email: string, password: string) => Promise<void>
-  signOut: () => Promise<void>
-}
+import { AuthContextType, Partner, Profile } from '@/types'
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
@@ -51,10 +31,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     // Escucha cambios de auth
     const {
       data: { subscription }
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session)
-      setUser(session?.user ?? null)
+    } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(prev => {
+        if (prev?.access_token === newSession?.access_token) return prev
+        return newSession
+      })
+      setUser(prev => {
+        if (prev?.id === newSession?.user?.id) return prev
+        return newSession?.user ?? null
+      })
     })
+
     return () => {
       subscription.unsubscribe()
     }
@@ -67,7 +54,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('partner_id,name')
+        .select('partner_id,name,avatar_url')
         .eq('id', user!.id)
         .maybeSingle()
       if (error) throw error
@@ -125,10 +112,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         user,
         session,
         partner: partner ?? null,
+        profile: profile ?? null,
         loading,
         signUp,
         signIn,
-        signOut
+        signOut,
+
       }}
     >
       {children}

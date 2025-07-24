@@ -8,7 +8,7 @@ export const useLoveNote = () => {
 
   useEffect(() => {
     const fetchNote = async () => {
-      if (!user) return;
+      if (!user?.id) return;
 
       const { data, error } = await supabase
         .from('love_notes')
@@ -16,24 +16,27 @@ export const useLoveNote = () => {
         .eq('recipient_id', user.id)
         .eq('seen', false)
         .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
+        .limit(1); // ❌ No uses .single()
 
-      if (error) return;
+      if (error) {
+        console.error('Error fetching love note:', error);
+        return;
+      }
 
-      if (data) {
-        setNote(data.message);
+      const noteData = data?.[0];
+      if (noteData) {
+        setNote(noteData.message);
 
-        // marcar como vista
+        // Marcar como vista
         await supabase
           .from('love_notes')
           .update({ seen: true })
-          .eq('id', data.id);
+          .eq('id', noteData.id);
       }
     };
 
     fetchNote();
-  }, [user]);
+  }, [user?.id]);
 
   return note;
 };

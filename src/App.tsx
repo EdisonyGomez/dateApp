@@ -5,19 +5,23 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from '@/contexts/AuthProvider'
 import Index from './pages/Index'
 import NotFound from './pages/NotFound'
+import ProfilePage from './pages/Profile'
+import EditProfile from './pages/EditProfile'
 
 const App = () => (
-  <TooltipProvider>
-    <AuthProvider>
-      <Toaster />
-      <BrowserRouter>
+  <BrowserRouter>
+    <TooltipProvider>
+      <AuthProvider>
+        <Toaster />
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="*" element={<NotFound />} />
+          {/* <Route path="/profile" element={<ProfilePage />} /> */}
+          <Route path="/profile" element={<EditProfile />} />
         </Routes>
-      </BrowserRouter>
-    </AuthProvider>
-  </TooltipProvider>
+      </AuthProvider>
+    </TooltipProvider>
+  </BrowserRouter>
 )
 
 export default App

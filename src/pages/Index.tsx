@@ -1,3 +1,4 @@
+// src/pages/Index.tsx
 import React from 'react'
 import { useAuth } from '@/contexts/AuthProvider'
 import { AuthForm } from '@/components/AuthForm'

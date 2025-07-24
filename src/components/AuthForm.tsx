@@ -1,3 +1,4 @@
+// src/components/AuthForm.tsx
 "use client"
 
 import type React from "react"

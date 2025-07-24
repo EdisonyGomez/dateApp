@@ -1,3 +1,4 @@
+// src/hooks/useSupabaseDiary.ts
 import { useState, useEffect } from 'react'
 import { SupabaseService } from '@/lib/SupabaseService' 
 import { DiaryEntry } from '@/types'

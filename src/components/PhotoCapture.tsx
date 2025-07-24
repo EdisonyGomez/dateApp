@@ -1,3 +1,4 @@
+// src/components/PhotoCapture.tsx
 import React, { useRef, useState, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import {

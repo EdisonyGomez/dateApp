@@ -1,3 +1,4 @@
+//src/pages/Dashboard.tsx
 import React, { useState, useMemo } from 'react'
 import { useAuth } from '@/contexts/AuthProvider'
 import { useDiaryEntries } from '@/hooks/useDiaryEntries'

@@ -1,3 +1,4 @@
+// src/components/CoupleGames.tsx
 import React, { useState, useEffect } from 'react'
 import {
   Card,
@@ -18,6 +19,7 @@ import {
   RefreshCw
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { UserAvatar } from './UserAvatar'
 
 /* ──────────────────── Tipos ──────────────────── */
 interface GameQuestion {
@@ -165,10 +167,11 @@ export const CoupleGames: React.FC = () => {
     user_id,
     profiles (
       id,
-      name
+      name,
+      avatar_url
     )
   `)
-        .in('user_id', userIds)
+        .in('user_id', [user.id, partnerId])
         .order('date', { ascending: false });
 
       if (respError) {
@@ -524,11 +527,17 @@ export const CoupleGames: React.FC = () => {
             <ul className="space-y-3">
               {gameResponses.map((res) => (
                 <li key={res.id} className="p-4 border rounded-lg bg-white shadow-sm">
+                  <UserAvatar
+                    name={res.profiles.name}
+                    avatarUrl={res.profiles.avatar_url}
 
+                    size="md"
+                  />
                   <div className="text-sm text-muted-foreground">
                     Answered by <strong>{res.profiles.name}</strong> on{' '}
                     {new Date(res.date).toLocaleDateString()}
                   </div>
+
 
                   <p className="text-md font-medium mt-1">{res.question}</p>
                   {res.answer && (

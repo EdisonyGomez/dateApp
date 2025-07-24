@@ -1,3 +1,4 @@
+// src/lib/SupabaseService.ts
 import { DiaryEntry, User } from '@/types'
 import { supabase } from './supabase'
 

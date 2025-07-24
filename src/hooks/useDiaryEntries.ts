@@ -1,3 +1,4 @@
+// src/hooks/useDiaryEntries.ts
 import { useState, useEffect, useCallback } from 'react'
 import { DiaryEntry } from '@/types'
 import { useAuth } from '@/contexts/AuthProvider'
