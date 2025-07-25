@@ -81,6 +81,10 @@ export class SupabaseService {
       content,
       date,
       mood,
+      title,
+      created_at,
+      updated_at,
+      is_private,
       user_id,
       photos,
       profiles (
