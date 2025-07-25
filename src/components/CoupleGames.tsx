@@ -530,8 +530,7 @@ export const CoupleGames: React.FC = () => {
                   <UserAvatar
                     name={res.profiles.name}
                     avatarUrl={res.profiles.avatar_url}
-
-                    size="md"
+                    size="lg"
                   />
                   <div className="text-sm text-muted-foreground">
                     Answered by <strong>{res.profiles.name}</strong> on{' '}

@@ -1,5 +1,5 @@
 // src/components/PhotoCapture.tsx
-import React, { useRef, useState, useCallback } from 'react'
+import React, { useRef, useState, useCallback, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -35,22 +35,27 @@ export const PhotoCapture: React.FC<PhotoCaptureProps> = ({
   const [capturedFile, setCapturedFile] = useState<File | null>(null)
 
   /* ────────────────── cámara ─────────────────── */
-  const startCamera = useCallback(async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user' },
-        audio: false
-      })
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        videoRef.current.play()
+const startCamera = useCallback(async () => {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user' },
+      audio: false
+    })
+
+    if (videoRef.current) {
+      videoRef.current.srcObject = stream
+
+      videoRef.current.onloadedmetadata = () => {
+        videoRef.current?.play()
         setIsStreaming(true)
       }
-    } catch (err) {
-      toast.error('Could not access camera. Please allow camera permissions.')
-      console.error(err)
     }
-  }, [])
+  } catch (err) {
+    toast.error('No se pudo acceder a la cámara.')
+    console.error(err)
+  }
+}, [])
+
 
   const stopCamera = useCallback(() => {
     if (videoRef.current?.srcObject) {
@@ -61,27 +66,47 @@ export const PhotoCapture: React.FC<PhotoCaptureProps> = ({
     setIsStreaming(false)
   }, [])
 
-  const capturePhoto = useCallback(() => {
-    if (!videoRef.current || !canvasRef.current) return
-    const video = videoRef.current
-    const canvas = canvasRef.current
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
+const capturePhoto = useCallback(() => {
+  const video = videoRef.current
+  const canvas = canvasRef.current
+  if (!video || !canvas) return
 
-    canvas.width = video.videoWidth
-    canvas.height = video.videoHeight
-    ctx.drawImage(video, 0, 0)
+  // Asegurarse de que el video está cargado
+  if (video.videoWidth === 0 || video.videoHeight === 0) {
+    toast.error('La cámara aún no está lista. Espera un segundo.')
+    return
+  }
 
-    canvas.toBlob(blob => {
-      if (!blob) return
-      const file = new File([blob], `photo-${Date.now()}.jpeg`, {
-        type: 'image/jpeg'
-      })
-      setCapturedFile(file)
-      setPreviewUrl(URL.createObjectURL(file))
-      stopCamera()
-    }, 'image/jpeg', 0.9)
-  }, [stopCamera])
+  canvas.width = video.videoWidth
+  canvas.height = video.videoHeight
+
+  const ctx = canvas.getContext('2d')
+  if (!ctx) {
+    toast.error('Error accediendo al canvas.')
+    return
+  }
+
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+
+  // Mostrar el contenido capturado
+  const imageDataURL = canvas.toDataURL('image/jpeg')
+  setPreviewUrl(imageDataURL)
+
+  // Convertirlo en archivo
+  canvas.toBlob(blob => {
+    if (!blob) {
+      toast.error('No se pudo capturar la imagen.')
+      return
+    }
+
+    const file = new File([blob], `photo-${Date.now()}.jpeg`, {
+      type: 'image/jpeg'
+    })
+    setCapturedFile(file)
+    stopCamera()
+  }, 'image/jpeg', 0.9)
+}, [stopCamera])
+
 
   /* ──────────────── upload desde disco ─────────────── */
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -129,6 +154,13 @@ export const PhotoCapture: React.FC<PhotoCaptureProps> = ({
     resetState()
     onClose()
   }
+useEffect(() => {
+  if (isOpen) {
+    startCamera()
+  } else {
+    stopCamera()
+  }
+}, [isOpen, startCamera, stopCamera])
 
   /* ────────────────── render ────────────────── */
   return (

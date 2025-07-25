@@ -17,7 +17,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="*" element={<NotFound />} />
           {/* <Route path="/profile" element={<ProfilePage />} /> */}
-          <Route path="/profile" element={<EditProfile />} />
+          <Route path="/edit-profile" element={<EditProfile />} />
         </Routes>
       </AuthProvider>
     </TooltipProvider>

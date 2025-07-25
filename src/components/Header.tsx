@@ -124,7 +124,7 @@ export const Header: React.FC<HeaderProps> = ({ onNewEntry, onShowPartnerLink })
 
                 {/* ✅ NUEVO ITEM: Ir al perfil */}
                 <DropdownMenuItem
-                  onClick={() => navigate('/profile')}
+                  onClick={() => navigate('/edit-profile')}
                   className="cursor-pointer"
                 >
                   <User className="mr-2 h-4 w-4" />

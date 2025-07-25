@@ -12,6 +12,9 @@ import { Calendar, Heart, Lock, Unlock } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthProvider'
 import { supabase } from '@/lib/supabase'
 import { DiaryEntry as DiaryEntryType } from '@/types'
+import { ProfileModal } from '@/pages/ProfileModal'
+import { DialogTrigger } from './ui/dialog'
+import { UserAvatar } from './UserAvatar'
 
 interface DiaryEntryProps {
   entry: DiaryEntryType
@@ -72,11 +75,13 @@ export const DiaryEntry: React.FC<DiaryEntryProps> = ({ entry, onEdit }) => {
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <Avatar className="h-8 w-8">
-              <AvatarFallback className={isOwn ? 'bg-blue-100 text-blue-700' : 'bg-pink-100 text-pink-700'}>
-                {initial}
-              </AvatarFallback>
-            </Avatar>
+            <ProfileModal
+              userId={entry.userId}
+              fallbackColor={isOwn ? 'bg-blue-100 text-blue-700' : 'bg-pink-100 text-pink-700'}
+            />
+
+
+
             <div>
               <CardTitle className="text-lg">{entry.title}</CardTitle>
               <div className="flex items-center text-sm text-muted-foreground mt-1">
@@ -107,7 +112,7 @@ export const DiaryEntry: React.FC<DiaryEntryProps> = ({ entry, onEdit }) => {
           </p>
         </div>
 
-        {entry.photos.length > 0 && (
+        {Array.isArray(entry.photos) && entry.photos.length > 0 && (
           <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-2">
             {entry.photos.map((photo, idx) => (
               <img

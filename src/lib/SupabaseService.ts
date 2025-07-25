@@ -31,7 +31,7 @@ export class SupabaseService {
   }
 
   /* ──────────────── ENTRADAS DIARIO ──────────────── */
-   /* ─────── crear entrada ─────── */
+  /* ─────── crear entrada ─────── */
   static async createDiaryEntry(entry: Omit<DiaryEntry, 'id' | 'createdAt' | 'updatedAt'>) {
     const { userId, isPrivate, ...rest } = entry
     const insertData = {
@@ -76,12 +76,26 @@ export class SupabaseService {
   static async getDiaryEntries(userId: string, partnerId?: string) {
     const { data, error } = await supabase
       .from('diary_entries')
-      .select('*')
+      .select(`
+      id,
+      content,
+      date,
+      mood,
+      user_id,
+      photos,
+      profiles (
+        id,
+        name,
+        avatar_url
+      )
+    `)
       .or(`user_id.eq.${userId},user_id.eq.${partnerId ?? '00000000-0000-0000-0000-000000000000'}`)
-      .order('date', { ascending: false })
-    if (error) throw error
-    return data.map(SupabaseService.toCamel)
+      .order('date', { ascending: false });
+
+    if (error) throw error;
+    return data.map(SupabaseService.toCamel);
   }
+
   /* ──────────────── FOTOS ──────────────── */
   static async uploadPhoto(file: File, userId: string) {
     const ext = file.name.split('.').pop()
@@ -98,7 +112,7 @@ export class SupabaseService {
     return data.publicUrl
   }
 
-   /* ─────── util: snake → camel ─────── */
+  /* ─────── util: snake → camel ─────── */
   private static toCamel(row: any): DiaryEntry {
     return {
       ...row,
