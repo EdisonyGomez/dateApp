@@ -1,20 +1,12 @@
 // src/components/DiaryEntry.tsx
 import React, { useState, useEffect } from 'react'
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle
-} from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Calendar, Heart, Lock, Unlock } from 'lucide-react'
+import { motion } from 'framer-motion'
 import { useAuth } from '@/contexts/AuthProvider'
 import { supabase } from '@/lib/supabase'
 import { DiaryEntry as DiaryEntryType } from '@/types'
 import { ProfileModal } from '@/pages/ProfileModal'
-import { DialogTrigger } from './ui/dialog'
-import { UserAvatar } from './UserAvatar'
+import { Calendar, Lock, Unlock } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 
 interface DiaryEntryProps {
   entry: DiaryEntryType
@@ -46,13 +38,11 @@ export const DiaryEntry: React.FC<DiaryEntryProps> = ({ entry, onEdit }) => {
   const isOwn = entry.userId === user?.id
   const [authorName, setAuthorName] = useState<string>('')
 
-  /* ────── busca nombre del autor (si no es propio) ────── */
   useEffect(() => {
     if (isOwn && user) {
       setAuthorName(user.user_metadata?.name ?? user.email)
       return
     }
-
     const fetchAuthor = async () => {
       const { data } = await supabase
         .from('profiles')
@@ -61,82 +51,79 @@ export const DiaryEntry: React.FC<DiaryEntryProps> = ({ entry, onEdit }) => {
         .single()
       setAuthorName(data?.name || 'Partner')
     }
-
     fetchAuthor()
   }, [entry.userId, isOwn, user])
 
-  /* ────── utils ────── */
-  const initial = authorName.charAt(0).toUpperCase()
-  const borderColor = isOwn ? 'border-l-blue-500' : 'border-l-pink-500'
+  const alignment = isOwn ? 'justify-end' : 'justify-start'
+  const bubbleColor = isOwn ? 'bg-green-100 text-green-900' : 'bg-pink-100 text-pink-900'
+  const textAlign = isOwn ? 'text-right' : 'text-left'
 
-  /* ────── render ────── */
   return (
-    <Card className={`mb-4 transition-all hover:shadow-md border-l-4 ${borderColor}`}>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
+    <div className={`flex ${alignment} mb-6`}>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: 'easeOut' }}
+        className={`relative flex flex-col max-w-[80%] sm:max-w-md rounded-3xl ${bubbleColor} shadow-xl p-4 border border-white/50 backdrop-blur-md`}
+      >
+        {/* Header */}
+        <div className="flex items-center mb-2">
+          <div className="mr-3">
             <ProfileModal
               userId={entry.userId}
-              fallbackColor={isOwn ? 'bg-blue-100 text-blue-700' : 'bg-pink-100 text-pink-700'}
+              fallbackColor={isOwn ? 'bg-green-200 text-green-700' : 'bg-pink-200 text-pink-700'}
             />
-
-
-
-            <div>
-              <CardTitle className="text-lg">{entry.title}</CardTitle>
-              <div className="flex items-center text-sm text-muted-foreground mt-1">
-                <Calendar className="h-4 w-4 mr-1" />
-                {new Date(entry.date).toLocaleDateString()}
-                <span className="mx-2">•</span>
-                <span>{authorName}</span>
-              </div>
+          </div>
+          <div className="flex-1">
+            <div className={`text-base font-bold leading-tight ${textAlign}`}>{entry.title}</div>
+            <div className={`text-xs text-gray-500 flex items-center gap-1 ${textAlign}`}>
+              <Calendar className="h-3 w-3" />
+              {new Date(entry.date).toLocaleDateString()} • {authorName}
             </div>
           </div>
-          <div className="flex items-center space-x-2">
-            {entry.isPrivate ? (
-              <Lock className="h-4 w-4 text-muted-foreground" />
-            ) : (
-              <Unlock className="h-4 w-4 text-muted-foreground" />
-            )}
-            <Badge className={moodColors[entry.mood]}>
-              {moodEmojis[entry.mood]} {entry.mood}
-            </Badge>
+          <div className="ml-2">
+            <Badge className={`text-xs py-0.5 px-2 ${moodColors[entry.mood]}`}>{moodEmojis[entry.mood]} {entry.mood}</Badge>
           </div>
         </div>
-      </CardHeader>
 
-      <CardContent>
-        <div className="prose prose-sm max-w-none">
-          <p className="whitespace-pre-wrap text-sm leading-relaxed">
-            {entry.content}
-          </p>
-        </div>
+        {/* Content */}
+        <p className={`text-sm whitespace-pre-wrap leading-relaxed `}>{entry.content}</p>
 
+        {/* Images */}
         {Array.isArray(entry.photos) && entry.photos.length > 0 && (
-          <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-2">
+          <div className="mt-3 grid grid-cols-2 gap-2">
             {entry.photos.map((photo, idx) => (
               <img
                 key={idx}
                 src={photo}
                 alt={`Photo ${idx + 1}`}
-                className="rounded-lg object-cover aspect-square"
+                className="rounded-md object-cover aspect-square"
               />
             ))}
           </div>
         )}
 
+        {/* Footer */}
+        <div className={`mt-3 flex items-center text-xs ${isOwn ? 'justify-end' : 'justify-start'}`}>
+          {entry.isPrivate ? (
+            <Lock className="h-3 w-3 text-gray-400 mr-1" />
+          ) : (
+            <Unlock className="h-3 w-3 text-gray-400 mr-1" />
+          )}
+          <span className="text-gray-400">{entry.isPrivate ? 'Private' : 'Shared'}</span>
+        </div>
+
         {isOwn && onEdit && (
-          <div className="mt-4 pt-3 border-t">
+          <div className="mt-3 text-xs text-right">
             <button
               onClick={() => onEdit(entry)}
-              className="text-sm text-blue-600 hover:text-blue-800 flex items-center"
+              className="text-green-700 hover:underline"
             >
-              <Heart className="h-4 w-4 mr-1" />
-              Edit entry
+              Edit
             </button>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </motion.div>
+    </div>
   )
 }

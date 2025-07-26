@@ -239,7 +239,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ userId, fallbackColo
                                     )}
                                     {renderEditInput(
                                         "modal-chinese_day",
-                                        "Día Chino",
+                                        "Gotcha Day",
                                         "text",
                                         profile.chinese_day || "",
                                         (e) => updateField("chinese_day", e.target.value),

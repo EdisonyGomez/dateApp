@@ -13,6 +13,7 @@ import { useAuth } from '@/contexts/AuthProvider'
 import { supabase } from '@/lib/supabase'
 import { Heart, LogOut, PlusCircle, User, Users } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { HeartParticles } from './HeartParticles'
 
 interface HeaderProps {
   onNewEntry: () => void
@@ -59,7 +60,8 @@ export const Header: React.FC<HeaderProps> = ({ onNewEntry, onShowPartnerLink })
   const initial = userName.charAt(0).toUpperCase()
 
   return (
-    <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-50">
+    <header className=" border-b bg-white/80 backdrop-blur-sm sticky top-0 z-50 overflow-hidden">
+      <HeartParticles />
       <div className="container mx-auto px-4 py-3">
         <div className="flex items-center justify-between">
           {/* logo + título */}

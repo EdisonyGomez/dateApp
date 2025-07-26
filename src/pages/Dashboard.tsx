@@ -24,6 +24,7 @@ import {
   BookOpen
 } from 'lucide-react'
 import { LoveNoteModal } from '@/components/LoveNoteModal'
+import { HeartParticles } from '@/components/HeartParticles'
 
 export const Dashboard: React.FC = () => {
   const { user, partner } = useAuth()
@@ -141,15 +142,16 @@ export const Dashboard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50">
+  <div className="relative min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 overflow-hidden">
         <LoveNoteModal />
 
       <Header
         onNewEntry={handleNewEntry}
         onShowPartnerLink={() => setShowPartnerLink(true)}
       />
+    <HeartParticles />
 
-      <div className="container mx-auto px-4 py-6 max-w-4xl">
+      <div className="container mx-auto px-4 py-6 max-w-4xl relative z-0">
         <Tabs defaultValue="diary" className="space-y-4">
           <TabsList className="grid grid-cols-2">
             <TabsTrigger value="diary">Diary</TabsTrigger>

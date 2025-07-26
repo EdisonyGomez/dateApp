@@ -1,585 +1,190 @@
-// src/components/CoupleGames.tsx
-import React, { useState, useEffect } from 'react'
+"use client"
+import type React from "react"
+import { useState } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Heart, Plus, Sparkles } from "lucide-react"
+import { toast } from "sonner"
+
+// Hooks
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle
-} from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Progress } from '@/components/ui/progress'
-import { useAuth } from '@/contexts/AuthProvider'
-import { supabase } from '@/lib/supabase'
-import {
-  Heart,
-  Zap,
-  Trophy,
-  Star,
-  RefreshCw
-} from 'lucide-react'
-import { toast } from 'sonner'
-import { UserAvatar } from './UserAvatar'
+  useGameStreak,
+  usePartnerLink,
+  useDailyQuestion,
+  useCanAnswer,
+  useGameResponses,
+  useReactions,
+} from "@/hooks/useGameHooks"
 
-/* ──────────────────── Tipos ──────────────────── */
-interface GameQuestion {
-  id: string
-  question: string
-  category: 'deep' | 'fun' | 'memory' | 'future' | 'intimate'
-}
+// Components
+import { GameStats } from "./GameStats"
+import { DailyQuestionCard } from "./DailyQuestionCard"
+import { GameResponsesList } from "./GameResponsesList"
+import { QuestionFormModal } from "./QuestionFormModal"
 
-interface GameStreak {
-  currentStreak: number
-  longestStreak: number
-  lastPlayedDate: string
-  totalQuestionsAnswered: number
-}
-
-interface GameResponse {
-  id: string;
-  question: string;
-  answer: string;
-  date: string;
-  category: string;
-  user_id: string;
-  profiles: {
-    id: string;
-    name: string;
-  };
-}
-
-/* ───────────────── Preguntas ─────────────────── */
-const coupleQuestions: GameQuestion[] = [
-  // Deep questions
-  { id: '1', question: '¿Cuál es tu mayor sueño que aún no me has contado?', category: 'deep' },
-  { id: '2', question: "What's one thing you'd change about your past if you could?", category: 'deep' },
-  { id: '3', question: '你最害怕失去什么？', category: 'deep' },
-  { id: '4', question: '¿Qué te hace sentir más vulnerable conmigo?', category: 'deep' },
-  { id: '5', question: 'Describe a moment when you felt most proud of yourself', category: 'deep' },
-  // Fun questions
-  { id: '6', question: 'If we could have any superpower as a couple, what would it be?', category: 'fun' },
-  { id: '7', question: '¿Cuál sería nuestro baile característico si fuéramos famosos?', category: 'fun' },
-  { id: '8', question: '如果我们可以养任何动物作为宠物，你会选择什么？', category: 'fun' },
-  { id: '9', question: '¿Qué película describiría mejor nuestra relación?', category: 'fun' },
-  { id: '10', question: 'What would be the title of a book about our love story?', category: 'fun' },
-  // Memory questions
-  { id: '11', question: '¿Cuál fue el momento exacto en que supiste que me amabas?', category: 'memory' },
-  { id: '12', question: "What's your favorite memory of us from this past month?", category: 'memory' },
-  { id: '13', question: '我们第一次见面时，你对我的第一印象是什么？', category: 'memory' },
-  { id: '14', question: '¿Qué es lo más gracioso que hemos hecho juntos?', category: 'memory' },
-  { id: '15', question: 'Describe our perfect day together from this year', category: 'memory' },
-  // Future questions
-  { id: '16', question: '¿Dónde te ves a ti y a nosotros en 5 años?', category: 'future' },
-  { id: '17', question: 'What tradition would you like us to start as a couple?', category: 'future' },
-  { id: '18', question: '你希望我们一起去哪里旅行？', category: 'future' },
-  { id: '19', question: '¿Qué aventura te gustaría que viviéramos juntos?', category: 'future' },
-  { id: '20', question: 'How do you want to celebrate our next anniversary?', category: 'future' },
-  // Intimate questions
-  { id: '21', question: '¿Qué es lo que más admiras de mí como persona?', category: 'intimate' },
-  { id: '22', question: 'When do you feel most connected to me?', category: 'intimate' },
-  { id: '23', question: '我做什么让你感到最被爱？', category: 'intimate' },
-  { id: '24', question: '¿Cómo puedo apoyarte mejor cuando tienes un mal día?', category: 'intimate' },
-  { id: '25', question: "What's one way I've grown since we've been together?", category: 'intimate' }
-]
-
-/* ──────────────── Estilos por categoría ──────────────── */
-const categoryColors: Record<GameQuestion['category'], string> = {
-  deep: 'bg-purple-100 text-purple-800',
-  fun: 'bg-yellow-100 text-yellow-800',
-  memory: 'bg-blue-100 text-blue-800',
-  future: 'bg-green-100 text-green-800',
-  intimate: 'bg-pink-100 text-pink-800'
-}
-
-const categoryEmojis: Record<GameQuestion['category'], string> = {
-  deep: '🤔',
-  fun: '😄',
-  memory: '💭',
-  future: '🔮',
-  intimate: '💕'
-}
-
-/* ──────────────────── Componente ──────────────────── */
 export const CoupleGames: React.FC = () => {
-  const { user } = useAuth()
-  const [partnerLinked, setPartnerLinked] = useState(false)
-  const [currentQuestion, setCurrentQuestion] = useState<GameQuestion | null>(null)
-  const [gameStreak, setGameStreak] = useState<GameStreak>({
-    currentStreak: 0,
-    longestStreak: 0,
-    lastPlayedDate: '',
-    totalQuestionsAnswered: 0
-  })
-  const [answeredToday, setAnsweredToday] = useState(false)
-  const [gameResponses, setGameResponses] = useState<any[]>([]);
-  const [userAnswer, setUserAnswer] = useState('');
-  const [reactions, setReactions] = useState<Record<string, { emoji: string; count: number; reacted: boolean }[]>>({});
+  // State
+  const [showQuestionModal, setShowQuestionModal] = useState(false)
 
-  /* ────── verifica vínculo de pareja ────── */
-  useEffect(() => {
-    const fetchPartner = async () => {
-      if (!user) {
-        setPartnerLinked(false)
-        return
-      }
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('partner_id')
-        .eq('id', user.id)
-        .single()
-      if (error) console.error(error)
-      setPartnerLinked(!!data?.partner_id)
-    }
-    fetchPartner()
-  }, [user])
+  // Hooks
+  const { gameStreak, updateStreak } = useGameStreak()
+  const { partnerLinked, loading: partnerLoading } = usePartnerLink()
+  const { dailyQuestion, loading: questionLoading, loadDailyQuestion } = useDailyQuestion()
+  const { canAnswer, loading: canAnswerLoading } = useCanAnswer()
+  const { responses, addResponse } = useGameResponses()
+  const { reactions, toggleReaction } = useReactions(responses)
 
-  /* ────── carga respuestas de juegos ────── */
-  useEffect(() => {
-    const fetchPartnerAndResponses = async () => {
-      if (!user) {
-        setPartnerLinked(false)
-        return
-      }
-
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('partner_id')
-        .eq('id', user.id)
-        .single()
-
-      if (error) {
-        console.error(error)
-        return
-      }
-
-      const partnerId = profile?.partner_id
-      setPartnerLinked(!!partnerId)
-      const userIds = [user.id, partnerId].filter(Boolean) as string[];
-
-      const { data: responses, error: respError } = await supabase
-        .from('game_responses')
-        .select(`
-    id,
-    question,
-    answer,
-    date,
-    category,
-    user_id,
-    profiles (
-      id,
-      name,
-      avatar_url
-    )
-  `)
-        .in('user_id', [user.id, partnerId])
-        .order('date', { ascending: false });
-
-      if (respError) {
-        console.error(respError)
-      } else {
-        setGameResponses(responses)
-      }
-    }
-
-    fetchPartnerAndResponses()
-  }, [user])
-
-
-  /* ────── carga reacciones ────── */
-  useEffect(() => {
-    if (!user || gameResponses.length === 0) return;
-
-    const loadReactions = async () => {
-      const { data, error } = await supabase
-        .from('game_reactions')
-        .select('response_id, emoji, user_id');
-
-      if (error) {
-        console.error('Error loading reactions:', error);
-        return;
-      }
-
-      const grouped: Record<string, { emoji: string; count: number; reacted: boolean }[]> = {};
-
-      for (const res of gameResponses) {
-        const responseReactions = data.filter(r => r.response_id === res.id);
-        const byEmoji: Record<string, { count: number; reacted: boolean }> = {};
-
-        for (const r of responseReactions) {
-          if (!byEmoji[r.emoji]) {
-            byEmoji[r.emoji] = { count: 0, reacted: false };
-          }
-          byEmoji[r.emoji].count += 1;
-          if (r.user_id === user.id) byEmoji[r.emoji].reacted = true;
-        }
-
-        grouped[res.id] = Object.entries(byEmoji).map(([emoji, val]) => ({
-          emoji,
-          count: val.count,
-          reacted: val.reacted
-        }));
-      }
-
-      setReactions(grouped);
-    };
-
-    loadReactions();
-  }, [user, gameResponses]);
-
-
-  const toggleReaction = async (responseId: string, emoji: string) => {
-    const existing = reactions[responseId]?.find(r => r.emoji === emoji && r.reacted);
-
-    if (existing) {
-      // Remove reaction
-      const { error } = await supabase
-        .from('game_reactions')
-        .delete()
-        .eq('response_id', responseId)
-        .eq('user_id', user.id)
-        .eq('emoji', emoji);
-
-      if (!error) {
-        setReactions(prev => ({
-          ...prev,
-          [responseId]: prev[responseId]
-            .map(r =>
-              r.emoji === emoji
-                ? { ...r, count: r.count - 1, reacted: false }
-                : r
-            )
-            .filter(r => r.count > 0)
-        }));
-      }
-    } else {
-      // Add reaction
-      const { error } = await supabase.from('game_reactions').insert({
-        response_id: responseId,
-        user_id: user.id,
-        emoji
-      });
-
-      if (!error) {
-        setReactions(prev => {
-          const current = prev[responseId] || [];
-          const found = current.find(r => r.emoji === emoji);
-
-          if (found) {
-            return {
-              ...prev,
-              [responseId]: current.map(r =>
-                r.emoji === emoji
-                  ? { ...r, count: r.count + 1, reacted: true }
-                  : r
-              )
-            };
-          } else {
-            return {
-              ...prev,
-              [responseId]: [...current, { emoji, count: 1, reacted: true }]
-            };
-          }
-        });
-      }
-    }
-  };
-
-
-  /* ────── carga progreso local ────── */
-  useEffect(() => {
-    if (!user) return
-    const stored = localStorage.getItem(`coupleGame_${user.id}`)
-    if (!stored) return
-
-    const data: GameStreak = JSON.parse(stored)
-    setGameStreak(data)
-    const today = new Date().toISOString().split('T')[0]
-    setAnsweredToday(data.lastPlayedDate === today)
-  }, [user])
-
-  /* ───────────── helpers ───────────── */
-  const getRandomQuestion = (): GameQuestion => {
-    const pool = coupleQuestions.filter(q => q.id !== currentQuestion?.id)
-    return pool[Math.floor(Math.random() * pool.length)]
-  }
-
-  const startGame = () => {
+  // Handlers
+  const handleStartGame = () => {
     if (!partnerLinked) {
-      toast.error('Link your partner first to start playing games!')
+      toast.error("Link your partner first to start playing games!")
       return
     }
-    setCurrentQuestion(getRandomQuestion())
+    if (!dailyQuestion) {
+      toast.error("No question available for today. Please try again later.")
+      return
+    }
   }
 
-  const markQuestionAnswered = async () => {
-    if (!user || !currentQuestion || !userAnswer.trim()) return;
+  const handleNewQuestion = async () => {
+    const today = new Date().toISOString().split("T")[0]
+    await loadDailyQuestion(today)
+  }
 
-    const today = new Date().toISOString().split('T')[0];
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
+  const handleAnswerSubmitted = (response: any) => {
+    addResponse(response)
+  }
 
-    let newStreak = gameStreak.currentStreak;
-    if (gameStreak.lastPlayedDate === yesterdayStr || gameStreak.lastPlayedDate === '') {
-      newStreak += 1;
-    } else if (gameStreak.lastPlayedDate !== today) {
-      newStreak = 1;
-    }
+  const handleQuestionCreated = () => {
+    // Reload daily question in case the new question should be today's question
+    const today = new Date().toISOString().split("T")[0]
+    loadDailyQuestion(today)
+    setShowQuestionModal(false)
+    toast.success("¡Pregunta creada exitosamente! 🎉")
+  }
 
-    const updated: GameStreak = {
-      currentStreak: newStreak,
-      longestStreak: Math.max(newStreak, gameStreak.longestStreak),
-      lastPlayedDate: today,
-      totalQuestionsAnswered: gameStreak.totalQuestionsAnswered + 1
-    };
+  // Loading states
+  if (partnerLoading || questionLoading || canAnswerLoading) {
+    return (
+      <Card className="w-full max-w-2xl mx-auto">
+        <CardContent className="p-8 text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500 mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">Loading...</p>
+        </CardContent>
+      </Card>
+    )
+  }
 
-    setGameStreak(updated);
-    setAnsweredToday(true);
-    localStorage.setItem(`coupleGame_${user.id}`, JSON.stringify(updated));
-    toast.success(`Great! Your streak is now ${newStreak} days! 🔥`);
-
-    const { error } = await supabase.from('game_responses').insert({
-      user_id: user.id,
-      question_id: currentQuestion.id,
-      question: currentQuestion.question,
-      category: currentQuestion.category,
-      answer: userAnswer.trim(),
-      date: today,
-      is_private: false
-    });
-
-    if (error) {
-      console.error('Error saving game response:', error);
-    } else {
-      setGameResponses(prev => [
-        {
-          id: crypto.randomUUID(),
-          user_id: user.id,
-          question_id: currentQuestion.id,
-          question: currentQuestion.question,
-          category: currentQuestion.category,
-          answer: userAnswer.trim(),
-          date: today,
-          created_at: new Date().toISOString(),
-          is_private: false
-        },
-        ...prev
-      ]);
-    }
-
-    setCurrentQuestion(null);
-    setUserAnswer('');
-  };
-
-
-
-  const getNextQuestion = () => setCurrentQuestion(getRandomQuestion())
-
-  const streakPercentage = Math.min((gameStreak.currentStreak / 30) * 100, 100)
-
-  /* ──────────────────── UI ──────────────────── */
   return (
-    <Card className="w-full max-w-2xl mx-auto">
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between">
-          <div className="flex items-center">
-            <Heart className="h-6 w-6 mr-2 text-pink-500" />
-            Couple Games
-          </div>
-          <div className="flex items-center space-x-2">
-            <Badge variant="outline" className="flex items-center">
-              <Zap className="h-3 w-3 mr-1" />
-              {gameStreak.currentStreak} day streak
-            </Badge>
-            {gameStreak.longestStreak > 0 && (
-              <Badge variant="outline" className="flex items-center">
-                <Trophy className="h-3 w-3 mr-1" />
-                Best: {gameStreak.longestStreak}
-              </Badge>
-            )}
-          </div>
-        </CardTitle>
-      </CardHeader>
-
-      <CardContent className="space-y-6">
-        {/* Streak Progress */}
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm">
-            <span>Daily Streak Progress</span>
-            <span>{gameStreak.currentStreak}/30 days</span>
-          </div>
-          <Progress value={streakPercentage} className="h-2" />
-          <p className="text-xs text-muted-foreground">
-            Play daily to build your streak! Total questions answered: {gameStreak.totalQuestionsAnswered}
-          </p>
-        </div>
-
-        {/* Current Question */}
-        {currentQuestion ? (
-          <div className="space-y-4">
-            <div className="p-6 bg-gradient-to-r from-pink-50 to-purple-50 rounded-lg border">
-              <div className="flex items-center justify-between mb-3">
-                <Badge className={categoryColors[currentQuestion.category]}>
-                  {categoryEmojis[currentQuestion.category]} {currentQuestion.category}
-                </Badge>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={getNextQuestion}
-                  className="text-muted-foreground"
-                >
-                  <RefreshCw className="h-4 w-4" />
-                </Button>
-              </div>
-              <p className="text-lg font-medium leading-relaxed">
-                {currentQuestion.question}
-              </p>
+    <div className="w-full max-w-2xl mx-auto space-y-6">
+      {/* Main Game Card */}
+      <Card className="shadow-lg border-pink-100">
+        <CardHeader className="bg-gradient-to-r from-pink-50 to-purple-50 rounded-t-lg">
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center">
+              <Heart className="h-6 w-6 mr-2 text-pink-500 animate-pulse" />
+              <span className="bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent font-bold">
+                Couple Games
+              </span>
             </div>
-
-            <div className="space-y-3">
-              <textarea
-                placeholder="Write your answer here..."
-                value={userAnswer}
-                onChange={(e) => setUserAnswer(e.target.value)}
-                className="w-full p-3 border rounded-md resize-none min-h-[100px]"
-                disabled={answeredToday}
-              />
-
-              <div className="flex space-x-3">
-                <Button
-                  onClick={markQuestionAnswered}
-                  className="flex-1"
-                  disabled={answeredToday || !userAnswer.trim()}
-                >
-                  <Star className="h-4 w-4 mr-2" />
-                  {answeredToday ? 'Already Played Today!' : 'Submit Answer'}
-                </Button>
-
-                <Button variant="outline" onClick={() => setCurrentQuestion(null)}>
-                  Skip
-                </Button>
-              </div>
-            </div>
-
-
-
-            {answeredToday && (
-              <div className="text-center p-4 bg-green-50 rounded-lg">
-                <p className="text-sm text-green-700">
-                  🎉 You've already played today! Come back tomorrow to continue your streak.
-                </p>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="text-center space-y-4">
-            <div className="p-8 bg-gradient-to-br from-pink-50 to-purple-50 rounded-lg">
-              <Heart className="h-12 w-12 text-pink-500 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold mb-2">Daily Couple Challenge</h3>
-              <p className="text-muted-foreground mb-6">
-                Strengthen your bond with thoughtful questions and conversations.
-                Questions support multiple languages!
-              </p>
-
-              {!partnerLinked ? (
-                <div className="p-4 bg-yellow-50 rounded-lg mb-4">
-                  💡 Link your partner first to unlock couple games!
-                </div>
-              ) : answeredToday ? (
-                <div className="p-4 bg-green-50 rounded-lg mb-4">
-                  <p className="text-sm text-green-700">
-                    ✅ Great job! You've played today. Come back tomorrow for your next question!
-                  </p>
-                </div>
-              ) : null}
-
+            {/* Botón para crear pregunta - Posición prominente */}
+            {partnerLinked && (
               <Button
-                onClick={startGame}
-                size="lg"
-                disabled={answeredToday}
-                className="min-w-[200px]"
+                onClick={() => setShowQuestionModal(true)}
+                size="sm"
+                variant="outline"
+                className="border-pink-300 text-pink-600 hover:bg-pink-50 hover:border-pink-400 hover:text-pink-700 transition-all duration-300 hover:scale-105"
               >
-                {answeredToday ? 'Come Back Tomorrow' : 'Start Daily Question'}
+                <Plus className="h-4 w-4 mr-1" />
+                Nueva Pregunta
               </Button>
-            </div>
-
-            {gameStreak.totalQuestionsAnswered > 0 && (
-              <div className="grid grid-cols-3 gap-4 text-center">
-                <div className="p-3 bg-white rounded-lg border">
-                  <div className="text-2xl font-bold text-pink-600">{gameStreak.currentStreak}</div>
-                  <div className="text-xs text-muted-foreground">Current Streak</div>
-                </div>
-                <div className="p-3 bg-white rounded-lg border">
-                  <div className="text-2xl font-bold text-purple-600">{gameStreak.longestStreak}</div>
-                  <div className="text-xs text-muted-foreground">Longest Streak</div>
-                </div>
-                <div className="p-3 bg-white rounded-lg border">
-                  <div className="text-2xl font-bold text-blue-600">{gameStreak.totalQuestionsAnswered}</div>
-                  <div className="text-xs text-muted-foreground">Total Questions</div>
-                </div>
-              </div>
             )}
-          </div>
-        )}
-        {gameResponses.length > 0 && (
-          <div className="mt-8 space-y-4">
-            <h3 className="text-md font-semibold">Past Questions Discussed</h3>
-            <ul className="space-y-3">
-              {gameResponses.map((res) => (
-                <li key={res.id} className="p-4 border rounded-lg bg-white shadow-sm">
-                  <UserAvatar
-                    name={res.profiles.name}
-                    avatarUrl={res.profiles.avatar_url}
-                    size="lg"
-                  />
-                  <div className="text-sm text-muted-foreground">
-                    Answered by <strong>{res.profiles.name}</strong> on{' '}
-                    {new Date(res.date).toLocaleDateString()}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6 p-6">
+          {/* Game Stats */}
+          <GameStats gameStreak={gameStreak} />
+
+          {/* Daily Question or Start Game */}
+          {dailyQuestion && partnerLinked ? (
+            <DailyQuestionCard
+              dailyQuestion={dailyQuestion}
+              canAnswer={canAnswer}
+              onAnswerSubmitted={handleAnswerSubmitted}
+              onUpdateStreak={updateStreak}
+              onNewQuestion={handleNewQuestion}
+            />
+          ) : (
+            <div className="text-center space-y-4">
+              <div className="p-8 bg-gradient-to-br from-pink-50 to-purple-50 rounded-xl border border-pink-100 shadow-inner">
+                <div className="flex justify-center mb-4">
+                  <div className="relative">
+                    <Heart className="h-12 w-12 text-pink-500 animate-pulse" />
+                    <Sparkles className="h-6 w-6 text-purple-400 absolute -top-1 -right-1 animate-bounce" />
                   </div>
-
-
-                  <p className="text-md font-medium mt-1">{res.question}</p>
-                  {res.answer && (
-                    <p className="text-sm text-gray-700 mt-2 border-t pt-2 italic">
-                      📝 {res.answer}
-                    </p>
-                  )}
-                  <div className="flex items-center gap-2 mt-2 flex-wrap">
-                    {(reactions[res.id] || []).map(r => (
-                      <button
-                        key={r.emoji}
-                        onClick={() => toggleReaction(res.id, r.emoji)}
-                        className={`text-lg px-2 py-1 rounded-full border flex items-center ${r.reacted ? 'bg-pink-100 border-pink-300' : 'bg-white'
-                          }`}
-                      >
-                        {r.emoji} <span className="ml-1 text-xs">{r.count}</span>
-                      </button>
-                    ))}
-
-                    {/* botones para nuevas reacciones */}
-                    {['❤️', '😆', '😮', '😢', '👏'].map(e => (
-                      <button
-                        key={e}
-                        onClick={() => toggleReaction(res.id, e)}
-                        className="text-lg px-2 py-1 rounded-full hover:bg-gray-100"
-                      >
-                        {e}
-                      </button>
-                    ))}
-                  </div>
-
-                  <span
-                    className={`text-xs inline-block mt-2 px-2 py-1 rounded-full capitalize ${categoryColors[res.category as GameQuestion['category']]}`}
-                  >
-                    {categoryEmojis[res.category as GameQuestion['category']]} {res.category}
+                </div>
+                <h3 className="text-2xl font-bold mb-2 bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
+                  Daily Couple Challenge
+                </h3>
+                <p className="text-gray-600 mb-6 leading-relaxed">
+                  Fortalece tu vínculo con preguntas reflexivas y conversaciones profundas.
+                  <br />
+                  <span className="text-sm text-purple-500 font-medium">
+                    ¡Las preguntas soportan múltiples idiomas!
                   </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+                </p>
 
-      </CardContent>
-    </Card>
-  );
-};
+                {!partnerLinked ? (
+                  <div className="p-4 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg mb-6 border border-yellow-200">
+                    <div className="flex items-center justify-center gap-2">
+                      <span className="text-2xl">💡</span>
+                      <p className="text-yellow-800 font-medium">
+                        ¡Conecta con tu pareja primero para desbloquear los juegos!
+                      </p>
+                    </div>
+                  </div>
+                ) : !canAnswer ? (
+                  <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg mb-6 border border-green-200">
+                    <div className="flex items-center justify-center gap-2">
+                      <span className="text-2xl">✅</span>
+                      <p className="text-green-800 font-medium">
+                        ¡Excelente trabajo! Ya jugaste hoy. ¡Vuelve mañana por tu próxima pregunta!
+                      </p>
+                    </div>
+                  </div>
+                ) : null}
+
+                <Button
+                  onClick={handleStartGame}
+                  size="lg"
+                  disabled={!partnerLinked || !canAnswer || !dailyQuestion}
+                  className="min-w-[200px] bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                >
+                  {!canAnswer ? "Vuelve Mañana" : "Comenzar Pregunta Diaria"}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Past Responses */}
+          {responses.length > 0 && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Heart className="h-5 w-5 text-pink-500" />
+                <h3 className="text-lg font-semibold text-gray-800">Respuestas Anteriores</h3>
+              </div>
+              <GameResponsesList responses={responses} reactions={reactions} onToggleReaction={toggleReaction} />
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Question Creation Modal */}
+      <QuestionFormModal
+        isOpen={showQuestionModal}
+        onClose={() => setShowQuestionModal(false)}
+        onQuestionCreated={handleQuestionCreated}
+      />
+    </div>
+  )
+}

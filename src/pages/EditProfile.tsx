@@ -11,18 +11,28 @@ import { Heart, ArrowLeft, User, Calendar, Music, Film, BookOpen, Utensils, Smil
 import { useAuth } from "@/contexts/AuthProvider"
 import { supabase } from "@/lib/supabase"
 import { toast } from "sonner"
+import { Profile } from "@/types"
 
 export default function EditProfile() {
   const navigate = useNavigate()
   const { user } = useAuth()
-  const [profile, setProfile] = useState<any>(null)
+  // const [profile, setProfile] = useState<any>(null)
+  const [profile, setProfile] = useState<Profile | null>(null)
+
   const [loading, setLoading] = useState(false)
+
+  const [favoriteMoviesText, setFavoriteMoviesText] = useState("")
+  const [favoriteSongsText, setFavoriteSongsText] = useState("")
+
 
   useEffect(() => {
     const fetchProfile = async () => {
       setLoading(true)
       const { data, error } = await supabase.from("profiles").select("*").eq("id", user?.id).single()
       if (!error) setProfile(data)
+      setFavoriteMoviesText(data.favorite_movies?.join(", ") || "")
+      setFavoriteSongsText(data.favorite_songs?.join(", ") || "")
+
       setLoading(false)
     }
     if (user?.id) fetchProfile()
@@ -34,7 +44,20 @@ export default function EditProfile() {
 
   const handleSave = async () => {
     setLoading(true)
-    const { error } = await supabase.from("profiles").update(profile).eq("id", user?.id)
+
+    const updatedProfile = {
+      ...profile, favorite_movies: favoriteMoviesText
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean),        
+      favorite_songs: favoriteSongsText
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean),
+    }
+
+
+    const { error } = await supabase.from("profiles").update(updatedProfile).eq("id", user?.id)
     setLoading(false)
     if (error) {
       toast.error("Error al actualizar el perfil. Por favor, inténtalo de nuevo.")
@@ -132,7 +155,7 @@ export default function EditProfile() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="chinese_day" className="text-gray-700 font-semibold">
-                  Día Chino (si aplica)
+                  Gotcha Day
                 </Label>
                 <Input
                   id="chinese_day"
@@ -225,6 +248,7 @@ export default function EditProfile() {
                   placeholder="Ej: Pop, Rock, Clásica"
                   className="input-field-style"
                 />
+
               </div>
               <div className="space-y-2">
                 <Label htmlFor="favorite_songs" className="text-gray-700 font-semibold">
@@ -232,16 +256,12 @@ export default function EditProfile() {
                 </Label>
                 <Textarea
                   id="favorite_songs"
-                  value={profile.favorite_songs?.join(", ") || ""}
-                  onChange={(e) =>
-                    updateField(
-                      "favorite_songs",
-                      e.target.value.split(",").map((s) => s.trim()),
-                    )
-                  }
-                  placeholder="Ej: Song A, Song B, Song C"
+                  value={favoriteSongsText}
+                  onChange={(e) => setFavoriteSongsText(e.target.value)}
+                  placeholder="Ej: Bohemian Rhapsody, Yellow, Let It Be"
                   className="input-field-style min-h-[80px]"
                 />
+
               </div>
               <div className="space-y-2 md:col-span-2">
                 <Label htmlFor="favorite_movies" className="text-gray-700 font-semibold">
@@ -249,16 +269,12 @@ export default function EditProfile() {
                 </Label>
                 <Textarea
                   id="favorite_movies"
-                  value={profile.favorite_movies?.join(", ") || ""}
-                  onChange={(e) =>
-                    updateField(
-                      "favorite_movies",
-                      e.target.value.split(",").map((s) => s.trim()),
-                    )
-                  }
-                  placeholder="Ej: Movie X, Movie Y, Movie Z"
+                  value={favoriteMoviesText}
+                  onChange={(e) => setFavoriteMoviesText(e.target.value)}
+                  placeholder="Ej: Eden Lake, The Notebook, Everything Everywhere All At Once"
                   className="input-field-style min-h-[80px]"
                 />
+
               </div>
             </div>
           </div>
