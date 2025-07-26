@@ -160,65 +160,7 @@ export const Dashboard: React.FC = () => {
 
           {/* ───────────── DIARY TAB ───────────── */}
           <TabsContent value="diary" className="space-y-8">
-            {/* Today's Moments */}
-            <div>
-              <h2 className="text-2xl font-bold mb-4 flex items-center">
-                <Calendar className="h-6 w-6 mr-2 text-pink-500" />
-                Today's Moments
-              </h2>
-              <div className="grid md:grid-cols-2 gap-4">
-                <Card>
-                  <CardContent className="p-4">
-                    <h3 className="font-semibold mb-2 flex items-center">
-                      <Heart className="h-4 w-4 mr-2 text-blue-500" />
-                      Your Entry
-                    </h3>
-                    {todayEntry ? (
-                      <>
-                        <p className="text-sm text-muted-foreground mb-1">{todayEntry.title}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {todayEntry.content.substring(0, 100)}...
-                        </p>
-                      </>
-                    ) : (
-                      <div>
-                        <p className="text-sm text-muted-foreground mb-2">No entry for today yet</p>
-                        <Button size="sm" onClick={handleNewEntry}>
-                          Write Today's Entry
-                        </Button>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-4">
-                    <h3 className="font-semibold mb-2 flex items-center">
-                      <Heart className="h-4 w-4 mr-2 text-pink-500" />
-                      {partner ? `${partner.name}'s Entry` : "Partner's Entry"}
-                    </h3>
-                    {!partner ? (
-                      <div>
-                        <p className="text-sm text-muted-foreground mb-2">No partner linked yet</p>
-                        <Button size="sm" variant="outline" onClick={() => setShowPartnerLink(true)}>
-                          Link Partner
-                        </Button>
-                      </div>
-                    ) : partnerTodayEntry ? (
-                      <>
-                        <p className="text-sm text-muted-foreground mb-1">{partnerTodayEntry.title}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {partnerTodayEntry.content.substring(0, 100)}...
-                        </p>
-                      </>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">
-                        {partner.name} hasn't written today yet
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
+    
 
             {/* Search & Filters */}
             <div className="space-y-4">
