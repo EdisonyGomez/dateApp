@@ -55,7 +55,13 @@ export const DiaryEntry: React.FC<DiaryEntryProps> = ({ entry, onEdit }) => {
   }, [entry.userId, isOwn, user])
 
   const alignment = isOwn ? 'justify-end' : 'justify-start'
-  const bubbleColor = isOwn ? 'bg-green-100 text-green-900' : 'bg-pink-100 text-pink-900'
+  const isMelody = authorName.toLowerCase().includes('melody')
+  const bubbleColor = isOwn
+    ? 'bg-green-100 text-green-900'
+    : isMelody
+      ? 'bg-pink-100 text-pink-900'
+      : 'bg-gray-100 text-gray-900'
+
   const textAlign = isOwn ? 'text-right' : 'text-left'
 
   return (

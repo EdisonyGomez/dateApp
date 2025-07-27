@@ -142,14 +142,14 @@ export const Dashboard: React.FC = () => {
   }
 
   return (
-  <div className="relative min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 overflow-hidden">
-        <LoveNoteModal />
+    <div className="relative min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 overflow-hidden">
+      <LoveNoteModal />
 
       <Header
         onNewEntry={handleNewEntry}
         onShowPartnerLink={() => setShowPartnerLink(true)}
       />
-    <HeartParticles />
+      <HeartParticles />
 
       <div className="container mx-auto px-4 py-6 max-w-4xl relative z-0">
         <Tabs defaultValue="diary" className="space-y-4">
@@ -160,7 +160,7 @@ export const Dashboard: React.FC = () => {
 
           {/* ───────────── DIARY TAB ───────────── */}
           <TabsContent value="diary" className="space-y-8">
-    
+
 
             {/* Search & Filters */}
             <div className="space-y-4">
@@ -204,6 +204,7 @@ export const Dashboard: React.FC = () => {
                 <BookOpen className="h-6 w-6 mr-2 text-purple-500" />
                 Diary Entries ({filteredEntries.length})
               </h2>
+
               {filteredEntries.length === 0 ? (
                 <Card>
                   <CardContent className="p-8 text-center">
@@ -221,14 +222,31 @@ export const Dashboard: React.FC = () => {
                   </CardContent>
                 </Card>
               ) : (
-                filteredEntries.map(entry => (
-                  <DiaryEntryComponent
-                    key={entry.id}
-                    entry={entry}
-                    onEdit={handleEditEntry}
-                  />
+                Object.entries(
+                  filteredEntries.reduce((groups, entry) => {
+                    const date = entry.date
+                    if (!groups[date]) groups[date] = []
+                    groups[date].push(entry)
+                    return groups
+                  }, {} as Record<string, DiaryEntryType[]>)
+                ).map(([date, entries]) => (
+                  <div key={date} className="mb-6">
+                    <h3 className="text-lg text-center font-semibold mb-2 text-gray-600">
+                      {new Date(date).toLocaleDateString()}
+                    </h3>
+                    <div className="flex flex-row items-start gap-4">
+                      {entries.map(entry => (
+                        <DiaryEntryComponent
+                          key={entry.id}
+                          entry={entry}
+                          onEdit={handleEditEntry}
+                        />
+                      ))}
+                    </div>
+                  </div>
                 ))
               )}
+
             </div>
           </TabsContent>
 
