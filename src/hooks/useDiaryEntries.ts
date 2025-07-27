@@ -47,9 +47,15 @@ export const useDiaryEntries = () => {
     await SupabaseService.deleteDiaryEntry(id)
     await loadEntries()
   }
+  
+    const normalizeDate = (date: string | Date) =>
+    new Date(date).toISOString().split('T')[0]
 
   const getEntryByDate = (date: string, uid?: string) =>
-    entries.find(e => e.date === date && e.userId === (uid ?? user!.id))
+     entries.find(e =>
+    normalizeDate(e.date) === normalizeDate(date) &&
+    e.userId === (uid ?? user!.id)
+  )
 
   return {
     entries,

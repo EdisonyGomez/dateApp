@@ -44,8 +44,12 @@ export const Dashboard: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState('')
   const [filterMood, setFilterMood] = useState<'all' | string>('all')
 
+  const normalizeDate = (date: string | Date) =>
+    new Date(date).toISOString().split('T')[0]
+
   const filteredEntries = useMemo(() => {
     let filtered = entries
+
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase()
       filtered = filtered.filter(e =>
@@ -54,7 +58,7 @@ export const Dashboard: React.FC = () => {
       )
     }
     if (selectedDate) {
-      filtered = filtered.filter(e => e.date === selectedDate)
+      filtered = filtered.filter(e => normalizeDate(e.date) === normalizeDate(selectedDate))
     }
     if (filterMood !== 'all') {
       filtered = filtered.filter(e => e.mood === filterMood)
@@ -62,13 +66,15 @@ export const Dashboard: React.FC = () => {
     return filtered
   }, [entries, searchQuery, selectedDate, filterMood])
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = normalizeDate(new Date())
   const todayEntry = getEntryByDate(today)
   const partnerTodayEntry = partner
     ? getEntryByDate(today, partner.id)
     : null
 
   const handleSaveEntry = (data: Omit<DiaryEntryType, 'id' | 'createdAt' | 'updatedAt'>) => {
+    console.log('Saving entry:', data) // 👈 revisa si el date es el nuevo
+
     try {
       if (editingEntry) {
         updateEntry(editingEntry.id, data)
@@ -232,7 +238,7 @@ export const Dashboard: React.FC = () => {
                 ).map(([date, entries]) => (
                   <div key={date} className="mb-6">
                     <h3 className="text-lg text-center font-semibold mb-2 text-gray-600">
-                      {new Date(date).toLocaleDateString()}
+                      {new Date(date).toISOString().split('T')[0]}
                     </h3>
                     <div className="flex flex-row items-start gap-4">
                       {entries.map(entry => (

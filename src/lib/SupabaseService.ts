@@ -54,6 +54,7 @@ export class SupabaseService {
     if (updates.isPrivate !== undefined) snakeUpdates.is_private = updates.isPrivate
     if (updates.title) snakeUpdates.title = updates.title
     if (updates.content) snakeUpdates.content = updates.content
+    if (updates.date) snakeUpdates.date = updates.date
     if (updates.mood) snakeUpdates.mood = updates.mood
     if (updates.photos) snakeUpdates.photos = updates.photos
     const { data, error } = await supabase

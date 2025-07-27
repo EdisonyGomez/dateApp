@@ -120,7 +120,7 @@ export const DiaryEntry: React.FC<DiaryEntryProps> = ({ entry, onEdit }) => {
             <div className={`text-base font-bold leading-tight `}>{entry.title}</div>
             <div className={`text-xs text-gray-500 flex items-center gap-1 `}>
               <Calendar className="h-3 w-3" />
-              {new Date(entry.date).toLocaleDateString()} • {authorName}
+              {new Date(entry.date).toISOString().split('T')[0]} • {authorName}
             </div>
           </div>
           <div className="ml-2">
