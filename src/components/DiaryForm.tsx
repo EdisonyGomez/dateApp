@@ -38,7 +38,24 @@ const moodOptions = [
   { value: 'calm', label: '😌 Calm' },
   { value: 'stressed', label: '😰 Stressed' },
   { value: 'grateful', label: '🙏 Grateful' },
-  { value: 'neutral', label: '😐 Neutral' }
+  { value: 'neutral', label: '😐 Neutral' },
+  { value: 'cansado', label: '😴 Cansado' },
+  { value: 'enamorado', label: '😍 Enamorado' },
+  { value: 'aburrido', label: '😒 Aburrido' },
+  { value: 'sorprendido', label: '😲 Sorprendido' },
+  { value: 'confundido', label: '😕 Confundido' },
+  { value: 'ansioso', label: '😟 Ansioso' },
+  { value: 'relajado', label: '😌 Relajado' },
+  { value: 'nostálgico', label: '😢 Nostálgico' },
+  { value: 'motivado', label: '💪 Motivado' },
+  { value: 'inspirado', label: '✨ Inspirado' },
+  { value: 'frustrado', label: '😤 Frustrado' },
+  { value: 'aliviado', label: '😌 Aliviado' },
+  { value: 'exited', label: '😆 Exited' },
+  { value: 'worried', label: '😟 Worried' },
+  { value: 'scared', label: '😨 Scared' },
+  { value: 'hopeful', label: '🌟 Hopeful' },
+  { value: 'mad', label: '😠 Mad' }
 ] as const
 
 export const DiaryForm: React.FC<DiaryFormProps> = ({ entry, onSave, onCancel }) => {

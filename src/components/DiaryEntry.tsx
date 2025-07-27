@@ -20,7 +20,25 @@ const moodEmojis = {
   calm: '😌',
   stressed: '😰',
   grateful: '🙏',
-  neutral: '😐'
+  neutral: '😐',
+  cansado : '😴',
+  enamorado: '😍',
+  aburrido: '😒',
+  sorprendido: '😲',
+  confundido: '😕',
+  ansioso: '😟',
+  relajado: '😌',
+  nostálgico: '😢',
+  motivado: '💪',
+  inspirado: '✨',
+  frustrado: '😤',
+  aliviado: '😌',
+  exited: '😆',
+  worried: '😟',
+  scared: '😨',
+  hopeful: '🌟',
+  mad: '😠',
+
 } as const
 
 const moodColors = {
@@ -30,7 +48,25 @@ const moodColors = {
   calm: 'bg-green-100 text-green-800',
   stressed: 'bg-red-100 text-red-800',
   grateful: 'bg-purple-100 text-purple-800',
-  neutral: 'bg-gray-100 text-gray-800'
+  neutral: 'bg-gray-100 text-gray-800',
+  cansado: 'bg-gray-200 text-gray-800',
+  enamorado: 'bg-pink-100 text-pink-800',
+  aburrido: 'bg-gray-300 text-gray-800',
+  sorprendido: 'bg-yellow-200 text-yellow-800',
+  confundido: 'bg-blue-200 text-blue-800',
+  ansioso: 'bg-red-200 text-red-800',
+  relajado: 'bg-green-200 text-green-800',
+  nostálgico: 'bg-purple-200 text-purple-800',
+  motivado: 'bg-orange-200 text-orange-800',
+  inspirado: 'bg-pink-200 text-pink-800',
+  frustrado: 'bg-red-300 text-red-800',
+  aliviado: 'bg-green-300 text-green-800',
+  exited: 'bg-yellow-300 text-yellow-800',
+  worried: 'bg-blue-300 text-blue-800',
+  scared: 'bg-red-400 text-red-800',
+  hopeful: 'bg-purple-300 text-purple-800',
+  mad: 'bg-red-500 text-red-800',
+    
 } as const
 
 export const DiaryEntry: React.FC<DiaryEntryProps> = ({ entry, onEdit }) => {
