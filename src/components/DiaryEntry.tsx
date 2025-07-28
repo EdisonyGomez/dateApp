@@ -117,13 +117,9 @@ export const DiaryEntry: React.FC<DiaryEntryProps> = ({ entry, onEdit }) => {
     return { alignment: align, bubbleColor: color };
   }, [isOwn, authorName]);
 
-  const formattedDate = useMemo(() => {
+  const formattedDate = useMemo(() => { 
     try {
-      return new Date(entry.date).toLocaleDateString('es-CO', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      });
+      return  new Date(entry.date).toISOString().split('T')[0];
     } catch (e) {
       console.error("Error formatting date:", e);
       return "Fecha inválida";
