@@ -92,7 +92,7 @@ export const DiaryEntry: React.FC<DiaryEntryProps> = ({ entry, onEdit }) => {
       const { data, error } = await supabase
         .from('profiles')
         .select('name')
-        // .eq('id', entry.userId)
+        .eq('id', entry.userId)
         .single();
 
       if (error) {
