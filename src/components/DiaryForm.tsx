@@ -51,7 +51,6 @@ const moodOptions = [
   { value: 'inspirado', label: '✨ Inspirado' },
   { value: 'frustrado', label: '😤 Frustrado' },
   { value: 'aliviado', label: '😌 Aliviado' },
-  { value: 'exited', label: '😆 Exited' },
   { value: 'worried', label: '😟 Worried' },
   { value: 'scared', label: '😨 Scared' },
   { value: 'hopeful', label: '🌟 Hopeful' },

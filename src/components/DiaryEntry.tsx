@@ -23,22 +23,22 @@ const moodEmojis = {
   stressed: '😰',
   grateful: '🙏',
   neutral: '😐',
-  tired: '😴', // 'cansado'
-  inLove: '😍', // 'enamorado'
-  bored: '😒', // 'aburrido'
-  surprised: '😲', // 'sorprendido'
-  confused: '😕',
-  anxious: '😟',
-  relaxed: '😌',
-  nostalgic: '😢',
-  motivated: '💪',
-  inspired: '✨',
-  frustrated: '😤',
-  relieved: '😌',
+  cansado: '😴', // 'cansado'
+  enamorado: '😍', // 'enamorado'
+  aburrido: '😒', // 'aburrido'
+  sorprendido: '😲', // 'sorprendido'
+  confundido: '😕',
+  ansioso: '😟',
+  relajado: '😌',
+  nostálgico: '😢',
+  motivado: '💪',
+  inspirado: '✨',
+  frustrado: '😤',
+  aliviado: '😌',
   worried: '😟',
   scared: '😨',
   hopeful: '🌟',
-  angry: '😠', // 'mad'
+  mad: '😠', // ''
 } as const;
 
 // Mapeo de colores más robusto
