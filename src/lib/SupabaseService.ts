@@ -125,4 +125,6 @@ export class SupabaseService {
       isPrivate: row.is_private
     }
   }
+
+  
 }

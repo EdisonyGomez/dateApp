@@ -48,6 +48,16 @@ export interface AuthContextType {
 }
 
 export interface Profile {
+  dream_destinations: any[];
+  relationship_milestones: any[];
+  pet_names: any[];
+  love_languages: any[];
+  future_goals: any[];
+  couple_song: string;
+  love_story: string;
+  anniversaries: {};
+  favorite_activities: any[];
+  special_places: any[];
   partner_id: string | null
   name: string
   avatar_url?: string | null

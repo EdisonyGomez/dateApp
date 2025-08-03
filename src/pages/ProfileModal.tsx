@@ -1,5 +1,4 @@
 "use client"
-
 import type React from "react"
 import { useEffect, useState } from "react"
 import { DialogClose } from "@/components/ui/dialog"
@@ -8,7 +7,6 @@ import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { UserAvatar } from "@/components/UserAvatar"
 import { supabase } from "@/lib/supabase"
-import { toast } from "sonner"
 import {
   Calendar,
   Edit,
@@ -24,6 +22,12 @@ import {
   Sparkles,
   Crown,
   X,
+  MapPin,
+  Plane,
+  Target,
+  MessageSquareHeart,
+  PawPrint,
+  Trophy,
 } from "lucide-react"
 
 interface ProfileModalProps {
@@ -34,9 +38,9 @@ interface ProfileModalProps {
 
 export const ProfileModal: React.FC<ProfileModalProps> = ({ userId, fallbackColor, isCurrentUser = false }) => {
   const [profile, setProfile] = useState<any>(null)
-  const [editing, setEditing] = useState(false)
   const [loading, setLoading] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
+
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -45,36 +49,19 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ userId, fallbackColo
       const { data, error } = await supabase
         .from("profiles")
         .select(`
-          id, name, avatar_url, birthday, meet_date, chinese_day, 
-          languages, profession, favorite_foods, hobbies, 
-          favorite_music, favorite_songs, favorite_movies
+          id, name, avatar_url, birthday, meet_date, chinese_day,
+          languages, profession, favorite_foods, hobbies,
+          favorite_music, favorite_songs, favorite_movies,
+          love_story, couple_song, special_places, favorite_activities,
+          dream_destinations, future_goals, love_languages, pet_names, relationship_milestones
         `)
         .eq("id", userId)
         .single()
-
       if (!error) setProfile(data)
       setLoading(false)
     }
-
     if (userId) fetchProfile()
   }, [userId])
-
-  const handleSave = async () => {
-    setLoading(true)
-    const { error } = await supabase.from("profiles").update(profile).eq("id", userId)
-    setLoading(false)
-
-    if (error) {
-      toast.error("Error al guardar los cambios. Por favor, inténtalo de nuevo.")
-    } else {
-      toast.success("¡Perfil actualizado con éxito!")
-      setEditing(false)
-    }
-  }
-
-  const updateField = (field: string, value: any) => {
-    setProfile((prev: any) => ({ ...prev, [field]: value }))
-  }
 
   const renderViewField = (
     icon: React.ElementType,
@@ -83,10 +70,8 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ userId, fallbackColo
     gradient?: string,
   ) => {
     if (!value || (Array.isArray(value) && value.length === 0)) return null
-
     const IconComponent = icon
     const gradientClass = gradient || "from-pink-400 to-rose-500"
-
     return (
       <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-white to-pink-50 p-6 shadow-lg border border-pink-100 hover:shadow-xl transition-all duration-500 hover:-translate-y-2 hover:scale-105">
         <div className="flex items-start gap-5">
@@ -118,15 +103,13 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ userId, fallbackColo
     )
   }
 
-  // Componente de partículas
   const ParticleBackground = () => {
     return (
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {/* Corazones flotantes */}
         {[...Array(12)].map((_, i) => (
           <Heart
             key={`heart-${i}`}
-            className={`absolute text-pink-300/40 animate-float-${(i % 4) + 1}`}
+            className={`absolute text-pink-300/40 animate-pulse`}
             style={{
               left: `${Math.random() * 100}%`,
               top: `${Math.random() * 100}%`,
@@ -136,12 +119,10 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ userId, fallbackColo
             }}
           />
         ))}
-
-        {/* Estrellas flotantes */}
         {[...Array(8)].map((_, i) => (
           <Star
             key={`star-${i}`}
-            className={`absolute text-yellow-300/30 animate-twinkle`}
+            className={`absolute text-yellow-300/30 animate-pulse`}
             style={{
               left: `${Math.random() * 100}%`,
               top: `${Math.random() * 100}%`,
@@ -151,34 +132,16 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ userId, fallbackColo
             }}
           />
         ))}
-
-        {/* Sparkles flotantes */}
         {[...Array(15)].map((_, i) => (
           <Sparkles
             key={`sparkle-${i}`}
-            className={`absolute text-pink-400/30 animate-sparkle`}
+            className={`absolute text-pink-400/30 animate-pulse`}
             style={{
               left: `${Math.random() * 100}%`,
               top: `${Math.random() * 100}%`,
               fontSize: `${Math.random() * 18 + 12}px`,
               animationDelay: `${Math.random() * 8}s`,
               animationDuration: `${Math.random() * 6 + 4}s`,
-            }}
-          />
-        ))}
-
-        {/* Círculos de colores */}
-        {[...Array(10)].map((_, i) => (
-          <div
-            key={`circle-${i}`}
-            className={`absolute rounded-full bg-gradient-to-br from-pink-200/20 to-rose-300/20 animate-drift`}
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              width: `${Math.random() * 60 + 20}px`,
-              height: `${Math.random() * 60 + 20}px`,
-              animationDelay: `${Math.random() * 12}s`,
-              animationDuration: `${Math.random() * 15 + 20}s`,
             }}
           />
         ))}
@@ -195,7 +158,6 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ userId, fallbackColo
           </span>
         </DialogTrigger>
         <DialogContent className="w-[500px] bg-gradient-to-br from-pink-50 to-white rounded-3xl p-8 shadow-2xl border-0 overflow-hidden">
-          {/* Botón de cerrar llamativo para loading */}
           <DialogClose asChild>
             <button className="absolute top-4 right-4 z-50 group">
               <div className="relative">
@@ -206,7 +168,6 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ userId, fallbackColo
               </div>
             </button>
           </DialogClose>
-
           <ParticleBackground />
           <div className="flex flex-col items-center justify-center py-12 relative z-10">
             <div className="relative">
@@ -237,24 +198,15 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ userId, fallbackColo
           />
         </span>
       </DialogTrigger>
-
-      <DialogContent className="w-[1000px] max-w-[95vw] h-[85vh] overflow-hidden bg-gradient-to-br from-white via-pink-50 to-rose-50 rounded-3xl p-0 shadow-2xl border-0">
-        {/* Botón de cerrar súper llamativo */}
+      <DialogContent className="w-[1200px] max-w-[95vw] h-[90vh] overflow-hidden bg-gradient-to-br from-white via-pink-50 to-rose-50 rounded-3xl p-0 shadow-2xl border-0">
         <DialogClose asChild>
           <button className="absolute top-6 right-6 z-50 group">
             <div className="relative">
-              {/* Círculo principal con gradiente */}
               <div className="w-14 h-14 bg-gradient-to-br from-pink-500 via-rose-500 to-pink-600 rounded-full shadow-2xl group-hover:shadow-pink-500/50 transition-all duration-500 flex items-center justify-center group-hover:scale-125 group-hover:rotate-180 border-2 border-white">
                 <X className="h-7 w-7 text-white group-hover:scale-110 transition-transform duration-300" />
               </div>
-
-              {/* Anillo exterior animado */}
               <div className="absolute inset-0 w-14 h-14 bg-gradient-to-br from-pink-400 to-rose-500 rounded-full opacity-0 group-hover:opacity-30 animate-ping"></div>
-
-              {/* Anillo de pulso constante */}
               <div className="absolute inset-0 w-14 h-14 bg-pink-300 rounded-full opacity-20 animate-pulse"></div>
-
-              {/* Sparkles decorativos */}
               <Sparkles className="absolute -top-1 -right-1 h-4 w-4 text-yellow-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300 animate-bounce" />
               <Heart className="absolute -bottom-1 -left-1 h-3 w-3 text-pink-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300 animate-pulse" />
             </div>
@@ -262,13 +214,11 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ userId, fallbackColo
         </DialogClose>
 
         <ParticleBackground />
+
         <div className="h-full overflow-y-auto custom-scrollbar relative z-10">
-          <div className="p-8 pt-16">
-            {" "}
-            {/* Añadido pt-16 para dar espacio al botón de cerrar */}
+          <div className="p-8">
             {/* Header con imagen lateral */}
             <div className="flex gap-8 mb-8">
-              {/* Imagen del perfil */}
               <div className="relative w-72 h-72 flex-shrink-0">
                 <div className="w-full h-full rounded-3xl overflow-hidden shadow-2xl border-4 border-pink-200">
                   <img
@@ -279,8 +229,6 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ userId, fallbackColo
                   <div className="absolute inset-0 bg-gradient-to-t from-pink-900/20 to-transparent"></div>
                 </div>
               </div>
-
-              {/* Información principal */}
               <div className="flex-1 flex flex-col justify-center min-w-0">
                 <div className="mb-6">
                   <h2 className="text-5xl font-bold text-gray-800 mb-3 flex items-center gap-3">
@@ -291,12 +239,10 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ userId, fallbackColo
                     {profile.profession || "Profesión no especificada"}
                   </p>
                 </div>
-
-                {/* Botones de acción principales */}
                 {isCurrentUser && (
                   <div className="flex gap-4">
                     <Button
-                      onClick={() => setEditing(true)}
+                      onClick={() => navigate("/edit-profile")}
                       className="flex-1 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white rounded-2xl py-4 font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
                     >
                       <Edit className="h-5 w-5 mr-2" />
@@ -306,6 +252,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ userId, fallbackColo
                 )}
               </div>
             </div>
+
             {/* Información detallada del perfil */}
             <div className="space-y-6">
               <div className="text-center mb-8">
@@ -316,11 +263,10 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ userId, fallbackColo
                 </h3>
                 <p className="text-lg text-gray-600">Conoce más sobre {profile.name}</p>
               </div>
-
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {renderViewField(Calendar, "Cumpleaños", profile.birthday, "from-pink-400 to-rose-500")}
                 {renderViewField(Handshake, "Se conocieron", profile.meet_date, "from-rose-400 to-pink-500")}
-                {renderViewField(Calendar, "Día Chino", profile.chinese_day, "from-red-400 to-pink-500")}
+                {renderViewField(Calendar, "Gotcha Day", profile.chinese_day, "from-red-400 to-pink-500")}
                 {renderViewField(Languages, "Idiomas", profile.languages, "from-purple-400 to-pink-500")}
                 {renderViewField(ChefHat, "Comidas Favoritas", profile.favorite_foods, "from-orange-400 to-pink-500")}
                 {renderViewField(Palette, "Pasatiempos", profile.hobbies, "from-teal-400 to-pink-500")}
@@ -337,9 +283,33 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ userId, fallbackColo
                   profile.favorite_movies,
                   "from-gray-400 to-pink-500",
                 )}
+                {renderViewField(Heart, "Historia de Amor", profile.love_story, "from-red-400 to-pink-500")}
+                {renderViewField(Headphones, "Nuestra Canción", profile.couple_song, "from-blue-400 to-purple-500")}
+                {renderViewField(MapPin, "Lugares Especiales", profile.special_places, "from-green-400 to-teal-500")}
+                {renderViewField(
+                  Target,
+                  "Actividades Juntos",
+                  profile.favorite_activities,
+                  "from-yellow-400 to-orange-500",
+                )}
+                {renderViewField(Plane, "Destinos de Ensueño", profile.dream_destinations, "from-cyan-400 to-blue-500")}
+                {renderViewField(Trophy, "Metas como Pareja", profile.future_goals, "from-purple-400 to-indigo-500")}
+                {renderViewField(
+                  MessageSquareHeart,
+                  "Lenguajes del Amor",
+                  profile.love_languages,
+                  "from-pink-400 to-rose-500",
+                )}
+                {renderViewField(PawPrint, "Apodos Cariñosos", profile.pet_names, "from-orange-400 to-red-500")}
+                {renderViewField(
+                  Trophy,
+                  "Hitos de la Relación",
+                  profile.relationship_milestones,
+                  "from-teal-400 to-green-500",
+                )}
               </div>
             </div>
-            {/* Botones de acción adicionales */}
+
             {isCurrentUser && (
               <div className="flex flex-col sm:flex-row gap-4 mt-12 pt-8 border-t border-pink-200">
                 <DialogClose asChild>
@@ -352,7 +322,6 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ userId, fallbackColo
                     Editar Perfil Completo
                   </Button>
                 </DialogClose>
-
                 <Button className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-2xl py-4 font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
                   <Heart className="h-5 w-5 mr-2" />
                   Compartir Perfil
@@ -362,78 +331,6 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ userId, fallbackColo
           </div>
         </div>
       </DialogContent>
-
-      <style>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 8px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: #fce7f3;
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: linear-gradient(to bottom, #f472b6, #ec4899);
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: linear-gradient(to bottom, #ec4899, #db2777);
-        }
-
-        /* Animaciones de partículas */
-        @keyframes float-1 {
-          0%, 100% { transform: translateY(0px) rotate(0deg); }
-          25% { transform: translateY(-20px) rotate(90deg); }
-          50% { transform: translateY(-10px) rotate(180deg); }
-          75% { transform: translateY(-30px) rotate(270deg); }
-        }
-
-        @keyframes float-2 {
-          0%, 100% { transform: translateY(0px) rotate(0deg); }
-          33% { transform: translateY(-25px) rotate(120deg); }
-          66% { transform: translateY(-15px) rotate(240deg); }
-        }
-
-        @keyframes float-3 {
-          0%, 100% { transform: translateY(0px) rotate(0deg); }
-          20% { transform: translateY(-15px) rotate(72deg); }
-          40% { transform: translateY(-30px) rotate(144deg); }
-          60% { transform: translateY(-10px) rotate(216deg); }
-          80% { transform: translateY(-25px) rotate(288deg); }
-        }
-
-        @keyframes float-4 {
-          0%, 100% { transform: translateY(0px) rotate(0deg); }
-          50% { transform: translateY(-35px) rotate(180deg); }
-        }
-
-        @keyframes twinkle {
-          0%, 100% { opacity: 0.3; transform: scale(1); }
-          50% { opacity: 1; transform: scale(1.2); }
-        }
-
-        @keyframes sparkle {
-          0%, 100% { opacity: 0.2; transform: scale(0.8) rotate(0deg); }
-          25% { opacity: 0.8; transform: scale(1.1) rotate(90deg); }
-          50% { opacity: 0.4; transform: scale(1.3) rotate(180deg); }
-          75% { opacity: 0.9; transform: scale(0.9) rotate(270deg); }
-        }
-
-        @keyframes drift {
-          0% { transform: translateX(0px) translateY(0px); }
-          25% { transform: translateX(20px) translateY(-15px); }
-          50% { transform: translateX(-10px) translateY(-30px); }
-          75% { transform: translateX(-25px) translateY(-10px); }
-          100% { transform: translateX(0px) translateY(0px); }
-        }
-
-        .animate-float-1 { animation: float-1 infinite ease-in-out; }
-        .animate-float-2 { animation: float-2 infinite ease-in-out; }
-        .animate-float-3 { animation: float-3 infinite ease-in-out; }
-        .animate-float-4 { animation: float-4 infinite ease-in-out; }
-        .animate-twinkle { animation: twinkle infinite ease-in-out; }
-        .animate-sparkle { animation: sparkle infinite ease-in-out; }
-        .animate-drift { animation: drift infinite ease-in-out; }
-      `}</style>
     </Dialog>
   )
 }
