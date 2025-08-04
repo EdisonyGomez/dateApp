@@ -28,12 +28,20 @@ import {
   MessageSquareHeart,
   PawPrint,
   Trophy,
+  User,
+  Users,
 } from "lucide-react"
 
 interface ProfileModalProps {
   userId: string
   fallbackColor?: string
   isCurrentUser?: boolean
+}
+
+interface WatchedMediaItem {
+  title: string
+  your_rating: number | null
+  partner_rating: number | null
 }
 
 export const ProfileModal: React.FC<ProfileModalProps> = ({ userId, fallbackColor, isCurrentUser = false }) => {
@@ -53,7 +61,8 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ userId, fallbackColo
           languages, profession, favorite_foods, hobbies,
           favorite_music, favorite_songs, favorite_movies,
           love_story, couple_song, special_places, favorite_activities,
-          dream_destinations, future_goals, love_languages, pet_names, relationship_milestones
+          dream_destinations, future_goals, love_languages, pet_names, relationship_milestones,
+          watched_media
         `)
         .eq("id", userId)
         .single()
@@ -66,12 +75,56 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ userId, fallbackColo
   const renderViewField = (
     icon: React.ElementType,
     label: string,
-    value: string | string[] | undefined,
+    value: string | string[] | WatchedMediaItem[] | undefined,
     gradient?: string,
   ) => {
     if (!value || (Array.isArray(value) && value.length === 0)) return null
     const IconComponent = icon
     const gradientClass = gradient || "from-pink-400 to-rose-500"
+
+    let content
+    if (Array.isArray(value)) {
+      if (value.length > 0 && typeof value[0] === "object" && "title" in value[0]) {
+        content = (
+          <div className="flex flex-col gap-2">
+            {(value as WatchedMediaItem[]).map((item, index) => (
+              <div
+                key={index}
+                className="flex items-center justify-between bg-pink-100/50 px-3 py-2 rounded-lg border border-pink-200"
+              >
+                <span className="font-medium text-gray-800">{item.title}</span>
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <span className="flex items-center gap-1">
+                    <User className="h-3 w-3 text-pink-500" /> {item.your_rating || "N/A"}{" "}
+                    <Star className="h-3 w-3 text-yellow-500" />
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Users className="h-3 w-3 text-rose-500" /> {item.partner_rating || "N/A"}{" "}
+                    <Star className="h-3 w-3 text-yellow-500" />
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      } else {
+        content = (
+          <div className="flex flex-wrap gap-2">
+            {(value as string[]).map((item, index) => (
+              <span
+                key={index}
+                className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gradient-to-r from-pink-100 to-rose-100 text-pink-800 border border-pink-200"
+              >
+                {item}
+              </span>
+            ))}
+          </div>
+        )
+      }
+    } else {
+      content = <p className="text-gray-700 font-semibold text-lg">{value}</p>
+    }
+
     return (
       <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-white to-pink-50 p-6 shadow-lg border border-pink-100 hover:shadow-xl transition-all duration-500 hover:-translate-y-2 hover:scale-105">
         <div className="flex items-start gap-5">
@@ -82,20 +135,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ userId, fallbackColo
           </div>
           <div className="flex-1 min-w-0">
             <p className="font-bold text-gray-800 mb-2 text-sm uppercase tracking-wider">{label}</p>
-            {Array.isArray(value) ? (
-              <div className="flex flex-wrap gap-2">
-                {value.map((item, index) => (
-                  <span
-                    key={index}
-                    className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gradient-to-r from-pink-100 to-rose-100 text-pink-800 border border-pink-200"
-                  >
-                    {item}
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <p className="text-gray-700 font-semibold text-lg">{value}</p>
-            )}
+            {content}
           </div>
         </div>
         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-pink-100 to-transparent opacity-0 group-hover:opacity-30 transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-all duration-1000"></div>
@@ -217,7 +257,6 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ userId, fallbackColo
 
         <div className="h-full overflow-y-auto custom-scrollbar relative z-10">
           <div className="p-8">
-            {/* Header con imagen lateral */}
             <div className="flex gap-8 mb-8">
               <div className="relative w-72 h-72 flex-shrink-0">
                 <div className="w-full h-full rounded-3xl overflow-hidden shadow-2xl border-4 border-pink-200">
@@ -253,7 +292,6 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ userId, fallbackColo
               </div>
             </div>
 
-            {/* Información detallada del perfil */}
             <div className="space-y-6">
               <div className="text-center mb-8">
                 <h3 className="text-3xl font-bold text-gray-800 mb-2 flex items-center justify-center gap-2">
@@ -306,6 +344,12 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ userId, fallbackColo
                   "Hitos de la Relación",
                   profile.relationship_milestones,
                   "from-teal-400 to-green-500",
+                )}
+                {renderViewField(
+                  Clapperboard, // Usamos Clapperboard para películas/series
+                  "Películas/Series Vistas Juntos",
+                  profile.watched_media,
+                  "from-blue-400 to-purple-500",
                 )}
               </div>
             </div>

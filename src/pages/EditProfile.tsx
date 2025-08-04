@@ -22,11 +22,19 @@ import {
   Sparkles,
   Save,
   X,
+  Users,
+  Plus,
 } from "lucide-react"
 import { useAuth } from "@/contexts/AuthProvider"
 import { supabase } from "@/lib/supabase"
 import { toast } from "sonner"
 import type { Profile } from "@/types"
+
+interface WatchedMediaItem {
+  title: string
+  your_rating: number | null
+  partner_rating: number | null
+}
 
 export default function EditProfile() {
   const navigate = useNavigate()
@@ -35,6 +43,10 @@ export default function EditProfile() {
   const [loading, setLoading] = useState(false)
   const [favoriteMoviesText, setFavoriteMoviesText] = useState("")
   const [favoriteSongsText, setFavoriteSongsText] = useState("")
+  const [watchedMedia, setWatchedMedia] = useState<WatchedMediaItem[]>([]) // Nuevo estado para películas/series
+  const [newMediaTitle, setNewMediaTitle] = useState("")
+  const [newMediaYourRating, setNewMediaYourRating] = useState<number | null>(null)
+  const [newMediaPartnerRating, setNewMediaPartnerRating] = useState<number | null>(null)
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -42,8 +54,9 @@ export default function EditProfile() {
       const { data, error } = await supabase.from("profiles").select("*").eq("id", user?.id).single()
       if (!error && data) {
         setProfile(data)
-        setFavoriteMoviesText(data.favorite_movies?.join(", ") || "")
-        setFavoriteSongsText(data.favorite_songs?.join(", ") || "")
+        setFavoriteMoviesText(data.favorite_movies?.join(" | ") || "")
+        setFavoriteSongsText(data.favorite_songs?.join(" | ") || "")
+        setWatchedMedia(data.watched_media || []) // Cargar datos existentes
       }
       setLoading(false)
     }
@@ -52,6 +65,28 @@ export default function EditProfile() {
 
   const updateField = (field: string, value: any) => {
     setProfile((prev: any) => ({ ...prev, [field]: value }))
+  }
+
+  const handleAddMedia = () => {
+    if (newMediaTitle.trim()) {
+      setWatchedMedia((prev) => [
+        ...prev,
+        {
+          title: newMediaTitle.trim(),
+          your_rating: newMediaYourRating,
+          partner_rating: null,
+        },
+      ])
+      setNewMediaTitle("")
+      setNewMediaYourRating(null)
+      setNewMediaPartnerRating(null)
+    } else {
+      toast.error("El título de la película/serie no puede estar vacío.")
+    }
+  }
+
+  const handleRemoveMedia = (indexToRemove: number) => {
+    setWatchedMedia((prev) => prev.filter((_, index) => index !== indexToRemove))
   }
 
   const handleSave = async () => {
@@ -77,6 +112,7 @@ export default function EditProfile() {
       pet_names: profile.pet_names || [],
       relationship_milestones: profile.relationship_milestones || [],
       anniversaries: profile.anniversaries || {},
+      watched_media: watchedMedia, // Guardar el nuevo campo
     }
 
     const { error } = await supabase.from("profiles").update(updatedProfile).eq("id", user.id)
@@ -427,6 +463,97 @@ export default function EditProfile() {
               </div>
             </div>
 
+            {/* Sección: Películas/Series Vistas Juntos */}
+            <div className="space-y-8 border-b border-pink-100 pb-12">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-3 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full shadow-lg">
+                  <Film className="h-6 w-6 text-white" />
+                </div>
+                <h3 className="text-3xl font-bold text-gray-800">Películas/Series Vistas Juntos</h3>
+              </div>
+              <p className="text-lg text-gray-600 mb-8">
+                Registra las películas y series que han disfrutado juntos y sus puntuaciones.
+              </p>
+
+              {/* Formulario para añadir nueva entrada */}
+              <div className="bg-pink-50/50 p-6 rounded-2xl border border-pink-100 space-y-4">
+                <div className="space-y-3">
+                  <Label htmlFor="newMediaTitle" className="text-gray-700 font-semibold text-lg">
+                    Título
+                  </Label>
+                  <Input
+                    id="newMediaTitle"
+                    value={newMediaTitle}
+                    onChange={(e) => setNewMediaTitle(e.target.value)}
+                    placeholder="Ej: La La Land, The Office"
+                    className="border-pink-200 focus:border-pink-400 focus:ring-pink-400 rounded-xl py-3 px-4 text-lg"
+                  />
+                </div>
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="space-y-3">
+                    <Label htmlFor="newMediaYourRating" className="text-gray-700 font-semibold text-lg">
+                      Tu Puntuación (1-5)
+                    </Label>
+                    <Input
+                      id="newMediaYourRating"
+                      type="number"
+                      min="1"
+                      max="5"
+                      value={newMediaYourRating === null ? "" : newMediaYourRating}
+                      onChange={(e) => setNewMediaYourRating(Number.parseInt(e.target.value) || null)}
+                      placeholder="Ej: 5"
+                      className="border-pink-200 focus:border-pink-400 focus:ring-pink-400 rounded-xl py-3 px-4 text-lg"
+                    />
+                  </div>
+                </div>
+                <Button
+                  onClick={handleAddMedia}
+                  className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-xl py-3 font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
+                >
+                  <Plus className="h-5 w-5 mr-2" />
+                  Añadir Película/Serie
+                </Button>
+              </div>
+
+              {/* Lista de películas/series añadidas */}
+              <div className="space-y-4">
+                {watchedMedia.length === 0 ? (
+                  <p className="text-center text-gray-500 italic">
+                    Aún no has añadido ninguna película o serie vista juntos.
+                  </p>
+                ) : (
+                  watchedMedia.map((media, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between bg-white p-4 rounded-xl shadow-sm border border-pink-100 animate-fade-in-item"
+                    >
+                      <div className="flex-1">
+                        <p className="font-semibold text-gray-800">{media.title}</p>
+                        <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
+                          <span className="flex items-center gap-1">
+                            <User className="h-4 w-4 text-pink-400" />
+                            Tu Puntuación: {media.your_rating || "N/A"} <Star className="h-3 w-3 text-yellow-500" />
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Users className="h-4 w-4 text-rose-400" />
+                            Pareja: {media.partner_rating || "N/A"} <Star className="h-3 w-3 text-yellow-500" />
+                          </span>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemoveMedia(index)}
+                        className="text-red-500 hover:bg-red-50"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
             {/* Sección: Historia de Amor */}
             <div className="space-y-8 border-b border-pink-100 pb-12">
               <div className="flex items-center gap-3 mb-6">
@@ -693,6 +820,19 @@ export default function EditProfile() {
         }
         .animate-fade-in {
           animation: fade-in 0.7s ease-out forwards;
+        }
+        @keyframes fade-in-item {
+          from {
+            opacity: 0;
+            transform: translateX(-20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+        .animate-fade-in-item {
+          animation: fade-in-item 0.5s ease-out forwards;
         }
       `}</style>
     </div>
