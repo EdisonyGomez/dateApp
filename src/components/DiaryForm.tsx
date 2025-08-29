@@ -54,7 +54,13 @@ const moodOptions = [
   { value: 'worried', label: '😟 Worried' },
   { value: 'scared', label: '😨 Scared' },
   { value: 'hopeful', label: '🌟 Hopeful' },
-  { value: 'mad', label: '😠 Mad' }
+  { value: 'mad', label: '😠 Mad' },
+  { value: 'horny', label: '🔥 Horny' },
+  { value: 'meh', label: '😑 Meh' },
+  { value: 'sleepy', label: '😴 Sleepy' },
+  { value: 'sick', label: '🤒 Sick' },
+  { value: 'jealous', label: '😒 Jealous' },
+  { value: 'proud', label: '😎 Proud' }
 ] as const
 
 export const DiaryForm: React.FC<DiaryFormProps> = ({ entry, onSave, onCancel }) => {

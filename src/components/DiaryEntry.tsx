@@ -38,7 +38,14 @@ const moodEmojis = {
   worried: '😟',
   scared: '😨',
   hopeful: '🌟',
-  mad: '😠', // ''
+  mad: '😠', 
+  horny: '🔥',
+  meh: '😑',
+  sleepy: '😴',
+  sick: '🤒',
+  jealous: '😒',
+  proud: '😎'
+
 } as const;
 
 // Mapeo de colores más robusto

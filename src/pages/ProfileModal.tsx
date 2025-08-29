@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { UserAvatar } from "@/components/UserAvatar"
 import { supabase } from "@/lib/supabase"
+import { useAuth } from "@/contexts/AuthProvider" // Importar useAuth
 import {
   Calendar,
   Edit,
@@ -45,6 +46,7 @@ interface WatchedMediaItem {
 }
 
 export const ProfileModal: React.FC<ProfileModalProps> = ({ userId, fallbackColor, isCurrentUser = false }) => {
+  const { user, partner } = useAuth() // Obtener el usuario actual y su pareja
   const [profile, setProfile] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
@@ -52,9 +54,13 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ userId, fallbackColo
   const navigate = useNavigate()
 
   useEffect(() => {
-    const fetchProfile = async () => {
+    const fetchProfileData = async () => {
       setLoading(true)
-      const { data, error } = await supabase
+      let mainProfileData: any = null
+      let partnerProfileData: any = null
+
+      // 1. Obtener el perfil principal (el que se está visualizando)
+      const { data: mainData, error: mainError } = await supabase
         .from("profiles")
         .select(`
           id, name, avatar_url, birthday, meet_date, chinese_day,
@@ -66,11 +72,75 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ userId, fallbackColo
         `)
         .eq("id", userId)
         .single()
-      if (!error) setProfile(data)
+
+      if (mainError) {
+        console.error("Error fetching main profile:", mainError)
+        setLoading(false)
+        return
+      }
+      mainProfileData = mainData
+
+      // 2. Si el usuario actual está viendo su propio perfil y tiene una pareja, obtener el perfil de la pareja
+      if (isCurrentUser && partner?.id) {
+        const { data: partnerData, error: partnerError } = await supabase
+          .from("profiles")
+          .select(`watched_media`) // Solo necesitamos el campo watched_media del perfil de la pareja
+          .eq("id", partner.id)
+          .single()
+
+        if (partnerError) {
+          console.warn("Error fetching partner profile for watched media:", partnerError)
+          // Continuar sin los datos de la pareja si hay un error
+        } else {
+          partnerProfileData = partnerData
+        }
+      }
+
+      // 3. Combinar los datos de watched_media
+      const combinedWatchedMediaMap = new Map<string, WatchedMediaItem>()
+
+      // Añadir los medios vistos del perfil principal
+      if (mainProfileData.watched_media) {
+        mainProfileData.watched_media.forEach((item: WatchedMediaItem) => {
+          combinedWatchedMediaMap.set(item.title.toLowerCase(), {
+            title: item.title,
+            your_rating: item.your_rating, // Esta es la puntuación del usuario principal
+            partner_rating: item.partner_rating, // Esta es la puntuación de la pareja registrada por el usuario principal
+          })
+        })
+      }
+
+      // Añadir los medios vistos del perfil de la pareja (si aplica)
+      if (partnerProfileData && partnerProfileData.watched_media) {
+        partnerProfileData.watched_media.forEach((item: WatchedMediaItem) => {
+          const existing = combinedWatchedMediaMap.get(item.title.toLowerCase())
+          if (existing) {
+            // Si la película/serie ya existe, actualizamos la puntuación de la pareja
+            // (que es 'your_rating' desde la perspectiva de la pareja)
+            existing.partner_rating = item.your_rating
+          } else {
+            // Si la película/serie no existe en la lista del usuario principal, la añadimos
+            // La puntuación del usuario principal será null (ya que no la añadió)
+            // y la puntuación de la pareja será su 'your_rating'
+            combinedWatchedMediaMap.set(item.title.toLowerCase(), {
+              title: item.title,
+              your_rating: item.partner_rating, // La puntuación del usuario principal (si la pareja la registró)
+              partner_rating: item.your_rating, // La puntuación de la pareja
+            })
+          }
+        })
+      }
+
+      // Establecer el perfil con la lista combinada de medios vistos
+      setProfile({
+        ...mainProfileData,
+        watched_media: Array.from(combinedWatchedMediaMap.values()),
+      })
       setLoading(false)
     }
-    if (userId) fetchProfile()
-  }, [userId])
+
+    if (userId) fetchProfileData()
+  }, [userId, isCurrentUser, partner?.id]) // Dependencias para re-ejecutar el efecto
 
   const renderViewField = (
     icon: React.ElementType,
