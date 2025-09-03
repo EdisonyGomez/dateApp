@@ -38,7 +38,7 @@ const moodEmojis = {
   worried: '😟',
   scared: '😨',
   hopeful: '🌟',
-  mad: '😠', 
+  mad: '😠',
   horny: '🔥',
   meh: '😑',
   sleepy: '😴',
@@ -83,6 +83,32 @@ export const DiaryEntry: React.FC<DiaryEntryProps> = ({ entry, onEdit }) => {
   const isOwn = entry.userId === user?.id;
   const [authorName, setAuthorName] = useState<string>('Cargando...'); // Estado inicial 'Cargando...'
 
+
+  // --- NUEVO: control de expansión y tiempo de lectura ---
+  // S: Single-responsibility: solo maneja preferencias de lectura locales.
+  // O: Open-closed: fácil de ajustar MAX_CHARS sin tocar resto del componente.
+  const [expanded, setExpanded] = useState(false)
+
+  // Conteo simple de palabras para estimar tiempo (≈210 wpm)
+  const wordCount = useMemo(
+    () => (entry.content?.trim()?.split(/\s+/).length ?? 0),
+    [entry.content]
+  )
+  const readMinutes = Math.max(1, Math.round(wordCount / 210))
+
+  // Límite de caracteres para el preview
+  const MAX_CHARS = 550
+
+  // Texto a mostrar (preview vs. completo)
+  const contentPreview = useMemo(() => {
+    if (!entry.content) return ""
+    if (expanded) return entry.content
+    return entry.content.length > MAX_CHARS
+      ? entry.content.slice(0, MAX_CHARS) + "…"
+      : entry.content
+  }, [expanded, entry.content])
+
+
   // Validar que la clave de mood sea una de las esperadas
   const validatedMood: MoodKey = (entry.mood in moodEmojis) ? (entry.mood as MoodKey) : 'neutral';
 
@@ -124,9 +150,9 @@ export const DiaryEntry: React.FC<DiaryEntryProps> = ({ entry, onEdit }) => {
     return { alignment: align, bubbleColor: color };
   }, [isOwn, authorName]);
 
-  const formattedDate = useMemo(() => { 
+  const formattedDate = useMemo(() => {
     try {
-      return  new Date(entry.date).toISOString().split('T')[0];
+      return new Date(entry.date).toISOString().split('T')[0];
     } catch (e) {
       console.error("Error formatting date:", e);
       return "Fecha inválida";
@@ -168,9 +194,23 @@ export const DiaryEntry: React.FC<DiaryEntryProps> = ({ entry, onEdit }) => {
         </div>
 
         {/* Contenido de la entrada */}
-        <p className="text-sm whitespace-pre-wrap leading-relaxed">
-          {entry.content}
-        </p>
+        <div className="text-base leading-7 text-gray-800 whitespace-pre-wrap tracking-wide font-[500]">
+          {contentPreview}
+        </div>
+
+        {/* Barra de lectura: tiempo + toggle */}
+        <div className="mt-3 flex items-center justify-between text-xs text-pink-700/80">
+          <span>⏱️ {readMinutes} min</span>
+          {entry.content && entry.content.length > MAX_CHARS && (
+            <button
+              onClick={() => setExpanded((v) => !v)}
+              className="text-rose-600 hover:underline"
+              aria-label={expanded ? "Mostrar menos" : "Seguir leyendo"}
+            >
+              {expanded ? "Mostrar menos" : "Seguir leyendo"}
+            </button>
+          )}
+        </div>
 
         {/* Imágenes (si existen) */}
         {entry.photos && entry.photos.length > 0 && (

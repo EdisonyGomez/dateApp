@@ -32,6 +32,9 @@ export const Dashboard: React.FC = () => {
 
   const normalizeDate = (date: string | Date) => new Date(date).toISOString().split("T")[0]
 
+  const [readingMode, setReadingMode] = useState<"timeline" | "duet">("timeline")
+
+
   const filteredEntries = useMemo(() => {
     let filtered = entries
     if (searchQuery.trim()) {
@@ -242,17 +245,38 @@ export const Dashboard: React.FC = () => {
                     </Button>
                   )}
                 </div>
+
+                <div className="ml-auto flex gap-2">
+                  <Button
+                    variant={readingMode === "timeline" ? "default" : "outline"}
+                    className="rounded-xl"
+                    onClick={() => setReadingMode("timeline")}
+                  >
+                    Timeline
+                  </Button>
+                  <Button
+                    variant={readingMode === "duet" ? "default" : "outline"}
+                    className="rounded-xl"
+                    onClick={() => setReadingMode("duet")}
+                  >
+                    Dueto
+                  </Button>
+                </div>
+
               </CardContent>
             </Card>
 
+            {/* Entries List */}
             {/* Entries List */}
             <div className="space-y-6">
               <h2 className="text-3xl font-extrabold flex items-center text-rose-500">
                 <div className="bg-gradient-to-r from-pink-400 to-rose-500 p-3 rounded-full shadow-lg mr-3 transform transition-transform duration-300 hover:rotate-6">
                   <BookOpen className="h-7 w-7 text-white" />
                 </div>
-                Diary Entries ({filteredEntries.length})
+                {readingMode === "timeline" ? "Diary Entries" : "Vista Dueto"} ({filteredEntries.length})
               </h2>
+
+              {/* Vacío */}
               {filteredEntries.length === 0 ? (
                 <Card className="rounded-3xl shadow-xl border border-pink-100 bg-white/80 backdrop-blur-sm transform transition-transform duration-300 hover:scale-[1.01] hover:shadow-2xl">
                   <CardContent className="p-10 text-center">
@@ -272,33 +296,96 @@ export const Dashboard: React.FC = () => {
                   </CardContent>
                 </Card>
               ) : (
-                Object.entries(
-                  filteredEntries.reduce(
-                    (groups, entry) => {
-                      const date = entry.date
-                      if (!groups[date]) groups[date] = []
-                      groups[date].push(entry)
-                      return groups
-                    },
-                    {} as Record<string, DiaryEntryType[]>,
-                  ),
-                ).map(([date, entries]) => (
-                  <div key={date} className="mb-8">
-                    <div className="flex items-center justify-center ">
-                      <h3 className="text-xl text-center font-bold mb-4 text-pink-700 bg-pink-50/60 backdrop-blur-sm py-2 px-4 rounded-full inline-flex items-center shadow-md border border-pink-100 transition-all duration-300 hover:scale-105 hover:shadow-lg justify-center">
-                        <Calendar className="h-5 w-5 mr-2 text-rose-400" />
-                        {formatFullDate(date)}
-                      </h3>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 items-start">
-                      {entries.map((entry) => (
-                        <DiaryEntryComponent key={entry.id} entry={entry} onEdit={handleEditEntry} />
-                      ))}
-                    </div>
-                  </div>
-                ))
+                <>
+                  {readingMode === "timeline" && (
+                    /* === MODO TIMELINE (EXISTENTE) === */
+                    Object.entries(
+                      filteredEntries.reduce((groups, entry) => {
+                        const date = entry.date
+                        if (!groups[date]) groups[date] = []
+                        groups[date].push(entry)
+                        return groups
+                      }, {} as Record<string, DiaryEntryType[]>)
+                    ).map(([date, entries]) => (
+                      <div key={date} className="mb-8">
+                        <div className="flex items-center justify-center">
+                          <h3 className="text-xl text-center font-bold mb-4 text-pink-700 bg-pink-50/60 backdrop-blur-sm py-2 px-4 rounded-full inline-flex items-center shadow-md border border-pink-100 transition-all duration-300 hover:scale-105 hover:shadow-lg justify-center">
+                            <Calendar className="h-5 w-5 mr-2 text-rose-400" />
+                            {formatFullDate(date)}
+                          </h3>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 items-start">
+                          {entries.map((entry) => (
+                            <DiaryEntryComponent key={entry.id} entry={entry} onEdit={handleEditEntry} />
+                          ))}
+                        </div>
+                      </div>
+                    ))
+                  )}
+
+                  {readingMode === "duet" && (
+                    /* === MODO DUETO (NUEVO) === */
+                    Object.entries(
+                      filteredEntries.reduce((groups, entry) => {
+                        const date = entry.date
+                        if (!groups[date]) groups[date] = []
+                        groups[date].push(entry)
+                        return groups
+                      }, {} as Record<string, DiaryEntryType[]>)
+                    ).map(([date, entries]) => {
+                      const myEntry = entries.find(e => e.userId === user?.id)
+                      const partnerEntry = partner ? entries.find(e => e.userId === partner.id) : null
+
+                      return (
+                        <div key={date} className="mb-8">
+                          <div className="flex items-center justify-center">
+                            <h3 className="text-xl text-center font-bold mb-4 text-pink-700 bg-pink-50/60 backdrop-blur-sm py-2 px-4 rounded-full inline-flex items-center shadow-md border border-pink-100 transition-all duration-300 hover:scale-105 hover:shadow-lg justify-center">
+                              <Calendar className="h-5 w-5 mr-2 text-rose-400" />
+                              {formatFullDate(date)}
+                            </h3>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                            {/* Columna: Tú */}
+                            <Card className="rounded-3xl shadow-xl border border-pink-100 bg-white/80 backdrop-blur-sm p-4">
+                              <div className="text-sm font-semibold text-rose-600 mb-3">Tú</div>
+                              {myEntry ? (
+                                <DiaryEntryComponent entry={myEntry} onEdit={handleEditEntry} />
+                              ) : (
+                                <div className="text-sm text-pink-800/80">No escribiste este día.</div>
+                              )}
+                            </Card>
+
+                            {/* Columna: Pareja */}
+                            <Card className="rounded-3xl shadow-xl border border-pink-100 bg-white/80 backdrop-blur-sm p-4">
+                              <div className="text-sm font-semibold text-rose-600 mb-3">Pareja</div>
+                              {partner ? (
+                                partnerEntry ? (
+                                  <DiaryEntryComponent entry={partnerEntry} onEdit={handleEditEntry} />
+                                ) : (
+                                  <div className="text-sm text-pink-800/80">Tu pareja no ha escrito este día.</div>
+                                )
+                              ) : (
+                                <div className="text-sm text-pink-800/80">
+                                  Aún no has vinculado a tu pareja.{" "}
+                                  <button
+                                    className="text-rose-600 underline"
+                                    onClick={() => setShowPartnerLink(true)}
+                                  >
+                                    Vincular ahora
+                                  </button>
+                                </div>
+                              )}
+                            </Card>
+                          </div>
+                        </div>
+                      )
+                    })
+                  )}
+                </>
               )}
             </div>
+
           </TabsContent>
 
           {/* ───────────── CALENDAR TAB ───────────── */}
