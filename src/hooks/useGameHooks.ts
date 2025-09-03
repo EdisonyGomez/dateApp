@@ -85,23 +85,50 @@ export const usePartnerLink = () => {
 }
 
 // Hook para manejar la pregunta diaria
+// export const useDailyQuestion = () => {
+//   const [dailyQuestion, setDailyQuestion] = useState<DailyQuestion | null>(null)
+//   const [loading, setLoading] = useState(true)
+
+//   const loadDailyQuestion = useCallback(async (date: string) => {
+//     setLoading(true)
+    
+//     let question = await GameService.getDailyQuestion(date)
+    
+//     // Si no existe pregunta para hoy, crear una
+//     if (!question) {
+//       question = await GameService.createDailyQuestion(date)
+//     }
+    
+//     setDailyQuestion(question)
+//     setLoading(false)
+//   }, [])
+
+//   useEffect(() => {
+//     const today = new Date().toISOString().split('T')[0]
+//     loadDailyQuestion(today)
+//   }, [loadDailyQuestion])
+
+//   return { dailyQuestion, loading, loadDailyQuestion }
+// }
+
+// hooks/useGameHooks.ts (reemplaza el hook useDailyQuestion actual)
 export const useDailyQuestion = () => {
+  const { user } = useAuth()
   const [dailyQuestion, setDailyQuestion] = useState<DailyQuestion | null>(null)
   const [loading, setLoading] = useState(true)
 
   const loadDailyQuestion = useCallback(async (date: string) => {
     setLoading(true)
-    
-    let question = await GameService.getDailyQuestion(date)
-    
-    // Si no existe pregunta para hoy, crear una
-    if (!question) {
-      question = await GameService.createDailyQuestion(date)
+    if (!user) {
+      setDailyQuestion(null)
+      setLoading(false)
+      return
     }
-    
-    setDailyQuestion(question)
+
+    const question = await GameService.getDailyQuestionForUser(user.id, date)
+    setDailyQuestion(question) // puede ser null si no quedan preguntas
     setLoading(false)
-  }, [])
+  }, [user])
 
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0]
@@ -110,6 +137,9 @@ export const useDailyQuestion = () => {
 
   return { dailyQuestion, loading, loadDailyQuestion }
 }
+
+
+
 
 // Hook para verificar si el usuario puede responder
 export const useCanAnswer = () => {
@@ -165,10 +195,8 @@ export const useGameResponses = () => {
 
     try {
       const data = await GameService.getCoupleResponses(user.id, partnerId)
-      console.log('Loaded responses:', data) // Para debug
       setResponses(data)
     } catch (error) {
-      console.error('Error loading responses:', error)
       setResponses([])
     } finally {
       setLoading(false)

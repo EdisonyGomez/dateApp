@@ -16,7 +16,7 @@ import { Heart, Sparkles, Save, X } from "lucide-react"
 interface QuestionFormModalProps {
   isOpen: boolean
   onClose: () => void
-  onQuestionCreated?: (question: GameQuestion) => void
+  onQuestionCreated?: (question?: GameQuestion) => void
 }
 
 export const QuestionFormModal: React.FC<QuestionFormModalProps> = ({ isOpen, onClose, onQuestionCreated }) => {
@@ -68,7 +68,13 @@ export const QuestionFormModal: React.FC<QuestionFormModalProps> = ({ isOpen, on
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) handleClose()
+      }}
+    >
+
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto bg-gradient-to-br from-pink-50 to-purple-50 rounded-xl shadow-2xl shadow-pink-200/50 border border-pink-100 animate-fade-in">
         <DialogHeader className="text-center space-y-3 pb-4 border-b border-pink-100">
           <div className="flex flex-col items-center justify-center">
@@ -116,21 +122,19 @@ export const QuestionFormModal: React.FC<QuestionFormModalProps> = ({ isOpen, on
               {categories.map((category) => (
                 <div
                   key={category.value}
-                  className={`p-3 rounded-lg border-2 cursor-pointer transition-all duration-300 ${
-                    selectedCategory === category.value
-                      ? "border-pink-400 bg-pink-50 shadow-md"
-                      : "border-gray-200 bg-white hover:border-pink-200 hover:bg-pink-25"
-                  }`}
+                  className={`p-3 rounded-lg border-2 cursor-pointer transition-all duration-300 ${selectedCategory === category.value
+                    ? "border-pink-400 bg-pink-50 shadow-md"
+                    : "border-gray-200 bg-white hover:border-pink-200 hover:bg-pink-25"
+                    }`}
                   onClick={() => !submitting && setSelectedCategory(category.value)}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Badge
-                        className={`${
-                          selectedCategory === category.value
-                            ? categoryColors[category.value]
-                            : "bg-gray-100 text-gray-600"
-                        } transition-all duration-300`}
+                        className={`${selectedCategory === category.value
+                          ? categoryColors[category.value]
+                          : "bg-gray-100 text-gray-600"
+                          } transition-all duration-300`}
                       >
                         {categoryEmojis[category.value]} {category.label}
                       </Badge>

@@ -10,12 +10,12 @@ export class GameService {
       .select('partner_id')
       .eq('id', userId)
       .single()
-    
+
     if (error) {
       console.error('Error checking partner link:', error)
       return false
     }
-    
+
     return !!data?.partner_id
   }
 
@@ -26,12 +26,12 @@ export class GameService {
       .select('partner_id')
       .eq('id', userId)
       .single()
-    
+
     if (error) {
       console.error('Error getting partner ID:', error)
       return null
     }
-    
+
     return data?.partner_id || null
   }
 
@@ -47,12 +47,12 @@ export class GameService {
       })
       .select()
       .single()
-    
+
     if (error) {
       console.error('Error creating question:', error)
       return null
     }
-    
+
     return data
   }
 
@@ -63,129 +63,176 @@ export class GameService {
       .select('*')
       .eq('is_active', true)
       .order('created_at', { ascending: false })
-    
+
     if (error) {
       console.error('Error fetching questions:', error)
       return []
     }
-    
+
     return data || []
   }
 
   // Obtener la pregunta del día
-  static async getDailyQuestion(date: string): Promise<DailyQuestion | null> {
-    const { data, error } = await supabase
-      .from('daily_questions')
-      .select(`
-        id,
-        question_id,
-        date,
-        created_at,
-        game_questions!inner (
-          id,
-          question,
-          category,
-          created_by,
-          is_active
-        )
-      `)
-      .eq('date', date)
-      .single()
-    
-    if (error && error.code !== 'PGRST116') {
-      console.error('Error fetching daily question:', error)
-      return null
-    }
+  // static async getDailyQuestion(date: string): Promise<DailyQuestion | null> {
+  //   const { data, error } = await supabase
+  //     .from('daily_questions')
+  //     .select(`
+  //       id,
+  //       question_id,
+  //       date,
+  //       created_at,
+  //       game_questions!inner (
+  //         id,
+  //         question,
+  //         category,
+  //         created_by,
+  //         is_active
+  //       )
+  //     `)
+  //     .eq('date', date)
+  //     .single()
 
-    if (!data) return null
-    
-    // Convertir el array de Supabase a objeto único
-    const gameQuestions = Array.isArray(data.game_questions) 
-      ? data.game_questions[0] 
-      : data.game_questions
+  //   if (error && error.code !== 'PGRST116') {
+  //     console.error('Error fetching daily question:', error)
+  //     return null
+  //   }
 
-    return {
-      id: data.id,
-      question_id: data.question_id,
-      date: data.date,
-      created_at: data.created_at,
-      game_questions: gameQuestions
-    }
-  }
+  //   if (!data) return null
+
+  //   // Convertir el array de Supabase a objeto único
+  //   const gameQuestions = Array.isArray(data.game_questions) 
+  //     ? data.game_questions[0] 
+  //     : data.game_questions
+
+  //   return {
+  //     id: data.id,
+  //     question_id: data.question_id,
+  //     date: data.date,
+  //     created_at: data.created_at,
+  //     game_questions: gameQuestions
+  //   }
+  // }
 
   // Crear pregunta del día (solo si no existe)
-  static async createDailyQuestion(date: string): Promise<DailyQuestion | null> {
-    // Primero verificar si ya existe
-    const existing = await this.getDailyQuestion(date)
-    if (existing) return existing
+  // static async createDailyQuestion(date: string): Promise<DailyQuestion | null> {
+  //   // Primero verificar si ya existe
+  //   const existing = await this.getDailyQuestion(date)
+  //   if (existing) return existing
 
-    // Obtener una pregunta aleatoria
-    const questions = await this.getAllQuestions()
-    if (questions.length === 0) return null
+  //   // Obtener una pregunta aleatoria
+  //   const questions = await this.getAllQuestions()
+  //   if (questions.length === 0) return null
 
-    const randomQuestion = questions[Math.floor(Math.random() * questions.length)]
+  //   const randomQuestion = questions[Math.floor(Math.random() * questions.length)]
 
-    try {
-      const { data, error } = await supabase
-        .from('daily_questions')
-        .insert({
-          question_id: randomQuestion.id,
-          date: date
-        })
-        .select(`
-          id,
-          question_id,
-          date,
-          created_at,
-          game_questions!inner (
-            id,
-            question,
-            category,
-            created_by,
-            is_active
-          )
-        `)
-        .single()
-      
-      if (error) {
-        console.error('Error creating daily question:', error)
-        
-        // Si falla por RLS, intentar usar la función de base de datos
-        if (error.code === '42501') {
-          console.log('Attempting to use database function...')
-          const { error: funcError } = await supabase.rpc('create_daily_question_if_not_exists')
-          
-          if (funcError) {
-            console.error('Database function also failed:', funcError)
-            return null
-          }
-          
-          // Intentar obtener la pregunta creada por la función
-          return await this.getDailyQuestion(date)
-        }
-        
-        return null
-      }
+  //   try {
+  //     const { data, error } = await supabase
+  //       .from('daily_questions')
+  //       .insert({
+  //         question_id: randomQuestion.id,
+  //         date: date
+  //       })
+  //       .select(`
+  //         id,
+  //         question_id,
+  //         date,
+  //         created_at,
+  //         game_questions!inner (
+  //           id,
+  //           question,
+  //           category,
+  //           created_by,
+  //           is_active
+  //         )
+  //       `)
+  //       .single()
 
-      if (!data) return null
-      
-      // Convertir el array de Supabase a objeto único
-      const gameQuestions = Array.isArray(data.game_questions) 
-        ? data.game_questions[0] 
-        : data.game_questions
+  //     if (error) {
+  //       console.error('Error creating daily question:', error)
 
-      return {
-        id: data.id,
-        question_id: data.question_id,
-        date: data.date,
-        created_at: data.created_at,
-        game_questions: gameQuestions
-      }
-    } catch (error) {
-      console.error('Unexpected error creating daily question:', error)
-      return null
-    }
+  //       // Si falla por RLS, intentar usar la función de base de datos
+  //       if (error.code === '42501') {
+  //         console.log('Attempting to use database function...')
+  //         const { error: funcError } = await supabase.rpc('create_daily_question_if_not_exists')
+
+  //         if (funcError) {
+  //           console.error('Database function also failed:', funcError)
+  //           return null
+  //         }
+
+  //         // Intentar obtener la pregunta creada por la función
+  //         return await this.getDailyQuestion(date)
+  //       }
+
+  //       return null
+  //     }
+
+  //     if (!data) return null
+
+  //     // Convertir el array de Supabase a objeto único
+  //     const gameQuestions = Array.isArray(data.game_questions) 
+  //       ? data.game_questions[0] 
+  //       : data.game_questions
+
+  //     return {
+  //       id: data.id,
+  //       question_id: data.question_id,
+  //       date: data.date,
+  //       created_at: data.created_at,
+  //       game_questions: gameQuestions
+  //     }
+  //   } catch (error) {
+  //     console.error('Unexpected error creating daily question:', error)
+  //     return null
+  //   }
+  // }
+
+
+
+  static async getDailyQuestion(date: string): Promise<DailyQuestion | null> {
+    // Necesitamos el user.id actual; lo pasamos desde el hook (ver abajo)
+    throw new Error('Call getDailyQuestionForUser(userId, date) instead');
   }
+
+  static async getDailyQuestionForUser(userId: string, date: string, category?: string): Promise<DailyQuestion | null> {
+    const { data, error } = await supabase
+      .rpc('fn_get_or_create_today_question_by_user', {
+        p_user_id: userId,
+        p_date: date,
+        p_category: category ?? null
+      });
+
+    if (error) {
+      console.error('Error fetching daily question RPC:', error);
+      return null;
+    }
+    if (!data || data.length === 0) return null;
+
+    const row = data[0];
+    const gq = row.game_questions;
+
+    return {
+      id: row.id,
+      question_id: row.question_id ?? row.qid, // ← fallback a qid
+      date: row.date,
+      created_at: row.created_at,
+      game_questions: {
+        id: gq.id,
+        question: gq.question,
+        category: gq.category,
+        created_at: gq.created_at,
+        created_by: gq.created_by,
+        is_active: gq.is_active
+      }
+    };
+  }
+
+  static async createDailyQuestion(date: string): Promise<DailyQuestion | null> {
+    // compat legacy: delega al RPC para el usuario actual
+    throw new Error('Use getDailyQuestionForUser(userId, date) which is idempotent.');
+  }
+
+
 
   // Verificar si el usuario ya respondió hoy
   static async hasAnsweredToday(userId: string, date: string): Promise<boolean> {
@@ -194,14 +241,15 @@ export class GameService {
       .select('id')
       .eq('user_id', userId)
       .eq('date', date)
-      .single()
-    
-    if (error && error.code !== 'PGRST116') {
+      .maybeSingle(); // ← no 406 si no hay filas
+
+
+    if (error) {
       console.error('Error checking if answered today:', error)
       return false
     }
-    
     return !!data
+
   }
 
   // Guardar respuesta del juego
@@ -226,25 +274,25 @@ export class GameService {
         )
       `)
       .single()
-    
+
     if (error) {
       console.error('Error saving game response:', error)
       return null
     }
 
     if (!data) return null
-    
+
     // Convertir el array de Supabase a objeto único
-    const profiles = Array.isArray(data.profiles) 
-      ? data.profiles[0] 
+    const profiles = Array.isArray(data.profiles)
+      ? data.profiles[0]
       : data.profiles
-    
+
     // Verificar que tenga información del perfil
     if (!profiles || !profiles.name) {
       console.error('Response saved but profile information is missing')
       return null
     }
-    
+
     return {
       id: data.id,
       question_id: data.question_id,
@@ -281,21 +329,21 @@ export class GameService {
       `)
       .in('user_id', [userId, partnerId])
       .order('date', { ascending: false })
-    
+
     if (error) {
       console.error('Error fetching couple responses:', error)
       return []
     }
-    
+
     if (!data) return []
-    
+
     // Convertir los arrays de Supabase a objetos únicos y filtrar respuestas válidas
     const validResponses = data
       .map(response => {
-        const profiles = Array.isArray(response.profiles) 
-          ? response.profiles[0] 
+        const profiles = Array.isArray(response.profiles)
+          ? response.profiles[0]
           : response.profiles
-          
+
         return {
           id: response.id,
           question_id: response.question_id,
@@ -310,7 +358,7 @@ export class GameService {
         }
       })
       .filter(response => response.profiles && response.profiles.name)
-    
+
     return validResponses
   }
 
@@ -322,12 +370,12 @@ export class GameService {
       .from('game_reactions')
       .select('*')
       .in('response_id', responseIds)
-    
+
     if (error) {
       console.error('Error fetching reactions:', error)
       return []
     }
-    
+
     return data || []
   }
 
@@ -340,12 +388,12 @@ export class GameService {
         user_id: userId,
         emoji: emoji
       })
-    
+
     if (error) {
       console.error('Error adding reaction:', error)
       return false
     }
-    
+
     return true
   }
 
@@ -357,12 +405,12 @@ export class GameService {
       .eq('response_id', responseId)
       .eq('user_id', userId)
       .eq('emoji', emoji)
-    
+
     if (error) {
       console.error('Error removing reaction:', error)
       return false
     }
-    
+
     return true
   }
 }

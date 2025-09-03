@@ -115,6 +115,7 @@ export const CoupleGames: React.FC = () => {
               onNewQuestion={handleNewQuestion}
             />
           ) : (
+
             <div className="text-center space-y-4">
               <div className="p-8 bg-gradient-to-br from-pink-50 to-purple-50 rounded-xl border border-pink-100 shadow-inner">
                 <div className="flex justify-center mb-4">
@@ -150,6 +151,26 @@ export const CoupleGames: React.FC = () => {
                       <p className="text-green-800 font-medium">
                         ¡Excelente trabajo! Ya jugaste hoy. ¡Vuelve mañana por tu próxima pregunta!
                       </p>
+                    </div>
+                  </div>
+                ) : null}
+
+                {/* Mensaje indicando que no hay preguntas disponibles */}
+                {partnerLinked && !dailyQuestion ? (
+                  <div className="text-center space-y-4">
+                    <div className="p-8 bg-gradient-to-br from-gray-50 to-white rounded-xl border border-gray-200 shadow-inner">
+                      <h3 className="text-2xl font-bold mb-2">¡Sin más preguntas por ahora! 🎉</h3>
+                      <p className="text-gray-600 mb-4">
+                        Ya respondieron todas las preguntas activas. Crea nuevas para seguir jugando.
+                      </p>
+                      <div className="flex justify-center gap-2">
+                        <Button onClick={() => setShowQuestionModal(true)}>
+                          Agregar nueva pregunta
+                        </Button>
+                        <Button variant="outline" onClick={handleNewQuestion}>
+                          Reintentar
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ) : null}
