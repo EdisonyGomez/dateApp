@@ -202,6 +202,7 @@ export class GameService {
         p_category: category ?? null
       });
 
+    // ...
     if (error) {
       console.error('Error fetching daily question RPC:', error);
       return null;
@@ -211,9 +212,14 @@ export class GameService {
     const row = data[0];
     const gq = row.game_questions;
 
+    // ⛔️ Si la pregunta no está activa, no la mostramos
+    if (!gq || gq.is_active !== true) {
+      return null;
+    }
+
     return {
       id: row.id,
-      question_id: row.question_id ?? row.qid, // ← fallback a qid
+      question_id: row.question_id ?? row.qid, // fallback por si la RPC devuelve 'qid'
       date: row.date,
       created_at: row.created_at,
       game_questions: {
@@ -225,6 +231,7 @@ export class GameService {
         is_active: gq.is_active
       }
     };
+
   }
 
   static async createDailyQuestion(date: string): Promise<DailyQuestion | null> {
@@ -292,6 +299,23 @@ export class GameService {
       console.error('Response saved but profile information is missing')
       return null
     }
+
+    // 
+    // 🔒 Desactivar la pregunta para que no se vuelva a mostrar
+    try {
+      const { error: qErr } = await supabase
+        .from('game_questions')
+        .update({ is_active: false })
+        .eq('id', data.question_id); // data.question_id viene de la respuesta insertada
+
+      if (qErr) {
+        console.error('No se pudo desactivar la pregunta (is_active=false):', qErr);
+        // No detenemos el flujo: la respuesta ya fue guardada
+      }
+    } catch (e) {
+      console.error('Error inesperado desactivando la pregunta:', e);
+    }
+    // 🔒 Fin desactivar pregunta
 
     return {
       id: data.id,

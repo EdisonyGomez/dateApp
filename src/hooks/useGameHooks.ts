@@ -17,7 +17,7 @@ export const useGameStreak = () => {
 
   useEffect(() => {
     if (!user) return
-    
+
     const stored = localStorage.getItem(`coupleGame_${user.id}`)
     if (stored) {
       const data: GameStreak = JSON.parse(stored)
@@ -72,7 +72,7 @@ export const usePartnerLink = () => {
 
       const isLinked = await GameService.checkPartnerLink(user.id)
       const partnerIdResult = await GameService.getPartnerId(user.id)
-      
+
       setPartnerLinked(isLinked)
       setPartnerId(partnerIdResult)
       setLoading(false)
@@ -91,14 +91,14 @@ export const usePartnerLink = () => {
 
 //   const loadDailyQuestion = useCallback(async (date: string) => {
 //     setLoading(true)
-    
+
 //     let question = await GameService.getDailyQuestion(date)
-    
+
 //     // Si no existe pregunta para hoy, crear una
 //     if (!question) {
 //       question = await GameService.createDailyQuestion(date)
 //     }
-    
+
 //     setDailyQuestion(question)
 //     setLoading(false)
 //   }, [])
@@ -118,6 +118,7 @@ export const useDailyQuestion = () => {
   const [loading, setLoading] = useState(true)
 
   const loadDailyQuestion = useCallback(async (date: string) => {
+
     setLoading(true)
     if (!user) {
       setDailyQuestion(null)
@@ -126,7 +127,7 @@ export const useDailyQuestion = () => {
     }
 
     const question = await GameService.getDailyQuestionForUser(user.id, date)
-    setDailyQuestion(question) // puede ser null si no quedan preguntas
+    setDailyQuestion(question && question.game_questions?.is_active === true ? question : null);
     setLoading(false)
   }, [user])
 
@@ -167,7 +168,7 @@ export const useCanAnswer = () => {
     const interval = setInterval(() => {
       const now = new Date()
       const newToday = now.toISOString().split('T')[0]
-      
+
       if (newToday !== today) {
         checkCanAnswer(newToday)
       }
@@ -259,20 +260,20 @@ export const useReactions = (responses: GameResponse[]) => {
 
     const existing = reactions[responseId]?.find(r => r.emoji === emoji && r.reacted)
 
-    const success = existing 
+    const success = existing
       ? await GameService.removeReaction(responseId, user.id, emoji)
       : await GameService.addReaction(responseId, user.id, emoji)
 
     if (success) {
       setReactions(prev => {
         const current = prev[responseId] || []
-        
+
         if (existing) {
           // Remove reaction
           return {
             ...prev,
             [responseId]: current
-              .map(r => r.emoji === emoji 
+              .map(r => r.emoji === emoji
                 ? { ...r, count: r.count - 1, reacted: false }
                 : r
               )
@@ -284,7 +285,7 @@ export const useReactions = (responses: GameResponse[]) => {
           if (found) {
             return {
               ...prev,
-              [responseId]: current.map(r => r.emoji === emoji 
+              [responseId]: current.map(r => r.emoji === emoji
                 ? { ...r, count: r.count + 1, reacted: true }
                 : r
               )
