@@ -7,22 +7,24 @@ import { categoryColors, categoryEmojis } from '@/lib/gameConstants'
 import { GameService } from '@/lib/GameService'
 import { useAuth } from '@/contexts/AuthProvider'
 import { toast } from 'sonner'
-import { Star, RefreshCw } from 'lucide-react'
+import { Star } from 'lucide-react'
 
 interface DailyQuestionCardProps {
   dailyQuestion: DailyQuestion
   canAnswer: boolean
   onAnswerSubmitted: (response: GameResponse) => void
   onUpdateStreak: (date: string) => void
-  onNewQuestion: () => void
+  // onNewQuestion: () => void
 }
+
+
 
 export const DailyQuestionCard: React.FC<DailyQuestionCardProps> = ({
   dailyQuestion,
   canAnswer,
   onAnswerSubmitted,
   onUpdateStreak,
-  onNewQuestion
+  // onNewQuestion
 }) => {
   const { user } = useAuth()
   const [userAnswer, setUserAnswer] = useState('')
@@ -34,29 +36,44 @@ export const DailyQuestionCard: React.FC<DailyQuestionCardProps> = ({
     setSubmitting(true)
     const today = new Date().toISOString().split('T')[0]
 
-    const responseData = {
-      user_id: user.id,
-      question_id: dailyQuestion.question_id,
-      question: dailyQuestion.game_questions.question,
-      category: dailyQuestion.game_questions.category,
-      answer: userAnswer.trim(),
-      date: today,
-      is_private: false
-    }
+    try {
+      const result = await GameService.answerAndDeactivateQuestion({
+        userId: user.id,
+        questionId: dailyQuestion.question_id, // Ojo: este es el ID de la pregunta
+        answer: userAnswer.trim(),
+        dateISO: today,
+      })
 
-    const savedResponse = await GameService.saveGameResponse(responseData)
+      const savedResponse: GameResponse = {
+        id: result.responseId,
+        question_id: dailyQuestion.question_id,
+        question: dailyQuestion.game_questions.question,
+        answer: userAnswer.trim(),
+        date: today,
+        category: dailyQuestion.game_questions.category,
+        user_id: user.id,
+        created_at: result.createdAt,
+        is_private: false,
+        // Asegúrate de tipar 'profiles' como lo espera tu UI (si tu tipo lo marca requerido)
+        profiles: {
+          id: user.id,
+          name: user.user_metadata?.name ?? 'You',
+          avatar_url: user.user_metadata?.avatar_url ?? null,
+        } as any,
+      }
 
-    if (savedResponse) {
       onAnswerSubmitted(savedResponse)
       onUpdateStreak(today)
       setUserAnswer('')
-      toast.success('Answer saved successfully! 🎉')
-    } else {
-      toast.error('Failed to save answer. Please try again.')
+      toast.success('Answer saved and question deactivated! 🎉')
+      // onNewQuestion()
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to save answer. Please try again.')
+    } finally {
+      setSubmitting(false)
     }
-
-    setSubmitting(false)
   }
+
 
   if (!dailyQuestion.game_questions) {
     return (
@@ -78,11 +95,12 @@ export const DailyQuestionCard: React.FC<DailyQuestionCardProps> = ({
           <Button
             variant="ghost"
             size="sm"
-            onClick={onNewQuestion}
+            // onClick={onNewQuestion}
             className="text-muted-foreground"
-            disabled={!canAnswer}
+            disabled={!canAnswer || submitting} // <-- añade submitting
+
           >
-            <RefreshCw className="h-4 w-4" />
+            {/* <RefreshCw className="h-4 w-4" /> */}
           </Button>
         </div>
         <p className="text-lg font-medium leading-relaxed">

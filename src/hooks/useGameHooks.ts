@@ -5,6 +5,7 @@ import { GameStreak, GameResponse, GameReaction, ReactionSummary, DailyQuestion 
 import { useAuth } from '@/contexts/AuthProvider'
 import { toast } from 'sonner'
 
+
 // Hook para manejar el streak del juego
 export const useGameStreak = () => {
   const { user } = useAuth()
@@ -48,7 +49,7 @@ export const useGameStreak = () => {
 
     setGameStreak(updated)
     localStorage.setItem(`coupleGame_${user.id}`, JSON.stringify(updated))
-    toast.success(`Great! Your streak is now ${newStreak} days! 🔥`)
+    toast.success(`Great! Your streak is now ${newStreak} days! ðŸ"¥`)
   }, [user, gameStreak])
 
   return { gameStreak, updateStreak }
@@ -84,41 +85,14 @@ export const usePartnerLink = () => {
   return { partnerLinked, partnerId, loading }
 }
 
-// Hook para manejar la pregunta diaria
-// export const useDailyQuestion = () => {
-//   const [dailyQuestion, setDailyQuestion] = useState<DailyQuestion | null>(null)
-//   const [loading, setLoading] = useState(true)
-
-//   const loadDailyQuestion = useCallback(async (date: string) => {
-//     setLoading(true)
-
-//     let question = await GameService.getDailyQuestion(date)
-
-//     // Si no existe pregunta para hoy, crear una
-//     if (!question) {
-//       question = await GameService.createDailyQuestion(date)
-//     }
-
-//     setDailyQuestion(question)
-//     setLoading(false)
-//   }, [])
-
-//   useEffect(() => {
-//     const today = new Date().toISOString().split('T')[0]
-//     loadDailyQuestion(today)
-//   }, [loadDailyQuestion])
-
-//   return { dailyQuestion, loading, loadDailyQuestion }
-// }
-
-// hooks/useGameHooks.ts (reemplaza el hook useDailyQuestion actual)
+// Hook para manejar la pregunta diaria - MEJORADO
 export const useDailyQuestion = () => {
   const { user } = useAuth()
   const [dailyQuestion, setDailyQuestion] = useState<DailyQuestion | null>(null)
   const [loading, setLoading] = useState(true)
+  const [retryCount, setRetryCount] = useState(0)
 
   const loadDailyQuestion = useCallback(async (date: string) => {
-
     setLoading(true)
     if (!user) {
       setDailyQuestion(null)
@@ -126,10 +100,45 @@ export const useDailyQuestion = () => {
       return
     }
 
-    const question = await GameService.getDailyQuestionForUser(user.id, date)
-    setDailyQuestion(question && question.game_questions?.is_active === true ? question : null);
+    try {
+      console.log(`Intentando cargar pregunta diaria para ${date}...`)
+
+      // Verificar primero si hay preguntas activas disponibles
+      const hasActive = await GameService.hasActiveQuestions()
+      console.log(`Preguntas activas disponibles: ${hasActive}`)
+
+      if (!hasActive) {
+        console.log('No hay preguntas activas disponibles')
+        setDailyQuestion(null)
+        setLoading(false)
+        return
+      }
+
+      const question = await GameService.getDailyQuestionForUser(user.id, date)
+      console.log('Pregunta obtenida:', question)
+
+      if (question && question.game_questions?.is_active === true) {
+        setDailyQuestion(question)
+        setRetryCount(0) // Reset retry count on success
+      } else {
+        console.log('Pregunta no válida o inactiva:', question)
+        setDailyQuestion(null)
+
+        // Si hay preguntas activas pero no se obtuvo una válida, reintentar hasta 2 veces
+        if (hasActive && retryCount < 2) {
+          console.log(`Reintentando... (${retryCount + 1}/2)`)
+          setRetryCount(prev => prev + 1)
+          setTimeout(() => loadDailyQuestion(date), 1500)
+          return
+        }
+      }
+    } catch (error) {
+      console.error('Error cargando pregunta diaria:', error)
+      setDailyQuestion(null)
+    }
+
     setLoading(false)
-  }, [user])
+  }, [user, retryCount])
 
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0]
@@ -138,9 +147,6 @@ export const useDailyQuestion = () => {
 
   return { dailyQuestion, loading, loadDailyQuestion }
 }
-
-
-
 
 // Hook para verificar si el usuario puede responder
 export const useCanAnswer = () => {
@@ -187,6 +193,8 @@ export const useGameResponses = () => {
   const [responses, setResponses] = useState<GameResponse[]>([])
   const [loading, setLoading] = useState(true)
 
+  const { loadDailyQuestion } = useDailyQuestion()
+
   const loadResponses = useCallback(async () => {
     if (!user || !partnerId) {
       setResponses([])
@@ -204,14 +212,21 @@ export const useGameResponses = () => {
     }
   }, [user, partnerId])
 
-  const addResponse = useCallback((response: GameResponse) => {
-    // Verificar que la respuesta tenga la información necesaria
-    if (response && response.profiles && response.profiles.name) {
-      setResponses(prev => [response, ...prev])
-    } else {
-      console.warn('Attempted to add response without valid profile data:', response)
-    }
-  }, [])
+/**
+ * Inserta en cache la respuesta ya creada (GameResponse) y recarga la daily.
+ * La desactivación de la pregunta y el guardado real ya ocurrieron en el componente.
+ */
+const addResponse = async (response: GameResponse) => {
+  if (!user) throw new Error("Usuario no autenticado")
+
+  // Actualiza la lista local (cache/UI)
+  setResponses((prev) => [response, ...prev])
+
+  // Recarga la pregunta del día (si no hay activas, quedará null y la UI mostrará CTA)
+  const today = new Date().toISOString().split("T")[0]
+  await loadDailyQuestion(today)
+}
+
 
   useEffect(() => {
     loadResponses()
@@ -307,3 +322,4 @@ export const useReactions = (responses: GameResponse[]) => {
 
   return { reactions, toggleReaction, loadReactions }
 }
+

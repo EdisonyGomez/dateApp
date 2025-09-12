@@ -3,6 +3,39 @@ import { supabase } from './supabase'
 import { GameQuestion, GameResponse, GameReaction, DailyQuestion } from '@/types'
 
 export class GameService {
+
+  // Dentro de export class GameService { ... }
+static async answerAndDeactivateQuestion(
+  payload: { userId: string; questionId: string; answer: string; dateISO: string }
+): Promise<{ responseId: string; questionId: string; deactivated: boolean; createdAt: string }> {
+  const { userId, questionId, answer, dateISO } = payload
+
+  const { data, error } = await supabase.rpc("fn_answer_and_deactivate", {
+    p_user_id: userId,
+    p_question_id: questionId,
+    p_answer: answer,
+    p_date: dateISO,
+  })
+
+  if (error) {
+    throw new Error(error.message || "No se pudo guardar la respuesta.")
+  }
+  if (!data || data.length === 0) {
+    throw new Error("Respuesta no registrada. Intenta nuevamente.")
+  }
+
+  const row = data[0]
+  return {
+    responseId: row.response_id,
+    questionId: row.question_id,
+    deactivated: row.deactivated,
+    createdAt: row.created_at,
+  }
+}
+
+
+
+
   // Verificar si el usuario tiene pareja vinculada
   static async checkPartnerLink(userId: string): Promise<boolean> {
     const { data, error } = await supabase
@@ -35,6 +68,22 @@ export class GameService {
     return data?.partner_id || null
   }
 
+  // Verificar si hay preguntas activas disponibles
+  static async hasActiveQuestions(): Promise<boolean> {
+    const { data, error } = await supabase
+      .from('game_questions')
+      .select('id')
+      .eq('is_active', true)
+      .limit(1)
+
+    if (error) {
+      console.error('Error checking active questions:', error)
+      return false
+    }
+
+    return data && data.length > 0
+  }
+
   // Crear una nueva pregunta personalizada
   static async createCustomQuestion(question: GameQuestion): Promise<GameQuestion | null> {
     const { data, error } = await supabase
@@ -56,6 +105,21 @@ export class GameService {
     return data
   }
 
+  // Activar una pregunta específica
+  static async activateQuestion(questionId: string): Promise<boolean> {
+    const { error } = await supabase
+      .from('game_questions')
+      .update({ is_active: true })
+      .eq('id', questionId)
+
+    if (error) {
+      console.error('Error activating question:', error)
+      return false
+    }
+
+    return true
+  }
+
   // Obtener todas las preguntas activas
   static async getAllQuestions(): Promise<GameQuestion[]> {
     const { data, error } = await supabase
@@ -72,122 +136,20 @@ export class GameService {
     return data || []
   }
 
-  // Obtener la pregunta del día
-  // static async getDailyQuestion(date: string): Promise<DailyQuestion | null> {
-  //   const { data, error } = await supabase
-  //     .from('daily_questions')
-  //     .select(`
-  //       id,
-  //       question_id,
-  //       date,
-  //       created_at,
-  //       game_questions!inner (
-  //         id,
-  //         question,
-  //         category,
-  //         created_by,
-  //         is_active
-  //       )
-  //     `)
-  //     .eq('date', date)
-  //     .single()
+  // Obtener todas las preguntas (activas e inactivas) para reactivación
+  static async getAllQuestionsForReactivation(): Promise<GameQuestion[]> {
+    const { data, error } = await supabase
+      .from('game_questions')
+      .select('*')
+      .order('created_at', { ascending: false })
 
-  //   if (error && error.code !== 'PGRST116') {
-  //     console.error('Error fetching daily question:', error)
-  //     return null
-  //   }
+    if (error) {
+      console.error('Error fetching all questions:', error)
+      return []
+    }
 
-  //   if (!data) return null
-
-  //   // Convertir el array de Supabase a objeto único
-  //   const gameQuestions = Array.isArray(data.game_questions) 
-  //     ? data.game_questions[0] 
-  //     : data.game_questions
-
-  //   return {
-  //     id: data.id,
-  //     question_id: data.question_id,
-  //     date: data.date,
-  //     created_at: data.created_at,
-  //     game_questions: gameQuestions
-  //   }
-  // }
-
-  // Crear pregunta del día (solo si no existe)
-  // static async createDailyQuestion(date: string): Promise<DailyQuestion | null> {
-  //   // Primero verificar si ya existe
-  //   const existing = await this.getDailyQuestion(date)
-  //   if (existing) return existing
-
-  //   // Obtener una pregunta aleatoria
-  //   const questions = await this.getAllQuestions()
-  //   if (questions.length === 0) return null
-
-  //   const randomQuestion = questions[Math.floor(Math.random() * questions.length)]
-
-  //   try {
-  //     const { data, error } = await supabase
-  //       .from('daily_questions')
-  //       .insert({
-  //         question_id: randomQuestion.id,
-  //         date: date
-  //       })
-  //       .select(`
-  //         id,
-  //         question_id,
-  //         date,
-  //         created_at,
-  //         game_questions!inner (
-  //           id,
-  //           question,
-  //           category,
-  //           created_by,
-  //           is_active
-  //         )
-  //       `)
-  //       .single()
-
-  //     if (error) {
-  //       console.error('Error creating daily question:', error)
-
-  //       // Si falla por RLS, intentar usar la función de base de datos
-  //       if (error.code === '42501') {
-  //         console.log('Attempting to use database function...')
-  //         const { error: funcError } = await supabase.rpc('create_daily_question_if_not_exists')
-
-  //         if (funcError) {
-  //           console.error('Database function also failed:', funcError)
-  //           return null
-  //         }
-
-  //         // Intentar obtener la pregunta creada por la función
-  //         return await this.getDailyQuestion(date)
-  //       }
-
-  //       return null
-  //     }
-
-  //     if (!data) return null
-
-  //     // Convertir el array de Supabase a objeto único
-  //     const gameQuestions = Array.isArray(data.game_questions) 
-  //       ? data.game_questions[0] 
-  //       : data.game_questions
-
-  //     return {
-  //       id: data.id,
-  //       question_id: data.question_id,
-  //       date: data.date,
-  //       created_at: data.created_at,
-  //       game_questions: gameQuestions
-  //     }
-  //   } catch (error) {
-  //     console.error('Unexpected error creating daily question:', error)
-  //     return null
-  //   }
-  // }
-
-
+    return data || []
+  }
 
   static async getDailyQuestion(date: string): Promise<DailyQuestion | null> {
     // Necesitamos el user.id actual; lo pasamos desde el hook (ver abajo)
@@ -195,51 +157,43 @@ export class GameService {
   }
 
   static async getDailyQuestionForUser(userId: string, date: string, category?: string): Promise<DailyQuestion | null> {
-    const { data, error } = await supabase
-      .rpc('fn_get_or_create_today_question_by_user', {
-        p_user_id: userId,
-        p_date: date,
-        p_category: category ?? null
-      });
+  const { data, error } = await supabase.rpc('fn_get_or_create_today_question_by_user', {
+    p_user_id: userId,
+    p_date: date,
+    p_category: category ?? null
+  })
 
-    // ...
-    if (error) {
-      console.error('Error fetching daily question RPC:', error);
-      return null;
-    }
-    if (!data || data.length === 0) return null;
-
-    const row = data[0];
-    const gq = row.game_questions;
-
-    // ⛔️ Si la pregunta no está activa, no la mostramos
-    if (!gq || gq.is_active !== true) {
-      return null;
-    }
-
-    return {
-      id: row.id,
-      question_id: row.question_id ?? row.qid, // fallback por si la RPC devuelve 'qid'
-      date: row.date,
-      created_at: row.created_at,
-      game_questions: {
-        id: gq.id,
-        question: gq.question,
-        category: gq.category,
-        created_at: gq.created_at,
-        created_by: gq.created_by,
-        is_active: gq.is_active
-      }
-    };
-
+  if (error) {
+    console.error('Error fetching daily question RPC:', error)
+    return null
   }
+  if (!data || data.length === 0) return null
+
+  const row = data[0]
+  const gq = row.game_questions
+  if (!gq || gq.is_active !== true) return null
+
+  return {
+    id: row.id,
+    question_id: row.question_id ?? row.qid,
+    date: row.date,
+    created_at: row.created_at,
+    game_questions: {
+      id: gq.id,
+      question: gq.question,
+      category: gq.category,
+      created_at: gq.created_at,
+      created_by: gq.created_by,
+      is_active: gq.is_active
+    }
+  }
+}
+
 
   static async createDailyQuestion(date: string): Promise<DailyQuestion | null> {
     // compat legacy: delega al RPC para el usuario actual
     throw new Error('Use getDailyQuestionForUser(userId, date) which is idempotent.');
   }
-
-
 
   // Verificar si el usuario ya respondió hoy
   static async hasAnsweredToday(userId: string, date: string): Promise<boolean> {
@@ -248,15 +202,13 @@ export class GameService {
       .select('id')
       .eq('user_id', userId)
       .eq('date', date)
-      .maybeSingle(); // ← no 406 si no hay filas
-
+      .maybeSingle();
 
     if (error) {
       console.error('Error checking if answered today:', error)
       return false
     }
     return !!data
-
   }
 
   // Guardar respuesta del juego
@@ -300,22 +252,19 @@ export class GameService {
       return null
     }
 
-    // 
-    // 🔒 Desactivar la pregunta para que no se vuelva a mostrar
+    // Desactivar la pregunta para que no se vuelva a mostrar
     try {
       const { error: qErr } = await supabase
         .from('game_questions')
         .update({ is_active: false })
-        .eq('id', data.question_id); // data.question_id viene de la respuesta insertada
+        .eq('id', data.question_id);
 
       if (qErr) {
         console.error('No se pudo desactivar la pregunta (is_active=false):', qErr);
-        // No detenemos el flujo: la respuesta ya fue guardada
       }
     } catch (e) {
       console.error('Error inesperado desactivando la pregunta:', e);
     }
-    // 🔒 Fin desactivar pregunta
 
     return {
       id: data.id,
@@ -437,4 +386,21 @@ export class GameService {
 
     return true
   }
+  
+}
+
+
+
+export type AnswerAndDeactivateInput = {
+  userId: string
+  questionId: string
+  answer: string
+  dateISO: string // "YYYY-MM-DD"
+}
+
+export type AnswerAndDeactivateResult = {
+  responseId: string
+  questionId: string
+  deactivated: boolean
+  createdAt: string
 }

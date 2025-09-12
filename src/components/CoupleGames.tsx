@@ -1,9 +1,9 @@
 "use client"
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Heart, Plus, Sparkles } from "lucide-react"
+import { Heart, Plus, Sparkles, AlertCircle } from "lucide-react"
 import { toast } from "sonner"
 
 // Hooks
@@ -15,16 +15,19 @@ import {
   useGameResponses,
   useReactions,
 } from "@/hooks/useGameHooks"
+import { GameService } from "@/lib/GameService"
 
 // Components
 import { GameStats } from "./GameStats"
 import { DailyQuestionCard } from "./DailyQuestionCard"
 import { GameResponsesList } from "./GameResponsesList"
 import { QuestionFormModal } from "./QuestionFormModal"
+import { GameResponse } from "@/types"
 
 export const CoupleGames: React.FC = () => {
   // State
   const [showQuestionModal, setShowQuestionModal] = useState(false)
+  const [noQuestionsAvailable, setNoQuestionsAvailable] = useState(false)
 
   // Hooks
   const { gameStreak, updateStreak } = useGameStreak()
@@ -33,6 +36,21 @@ export const CoupleGames: React.FC = () => {
   const { canAnswer, loading: canAnswerLoading } = useCanAnswer()
   const { responses, addResponse } = useGameResponses()
   const { reactions, toggleReaction } = useReactions(responses)
+
+  // Effect to check if no questions are available and auto-open modal
+  useEffect(() => {
+    if (!questionLoading && !dailyQuestion && partnerLinked && canAnswer) {
+      setNoQuestionsAvailable(true)
+      // Auto-open modal after a short delay to let the UI render
+      const timer = setTimeout(() => {
+        setShowQuestionModal(true)
+        toast.info("No hay preguntas activas disponibles. ¡Crea una nueva para continuar jugando!")
+      }, 500)
+      return () => clearTimeout(timer)
+    } else {
+      setNoQuestionsAvailable(false)
+    }
+  }, [questionLoading, dailyQuestion, partnerLinked, canAnswer])
 
   // Handlers
   const handleStartGame = () => {
@@ -51,16 +69,25 @@ export const CoupleGames: React.FC = () => {
     await loadDailyQuestion(today)
   }
 
-  const handleAnswerSubmitted = (response: any) => {
+  const handleAnswerSubmitted = (response: GameResponse) => {
     addResponse(response)
   }
-
-  const handleQuestionCreated = () => {
+  const handleQuestionCreated = async () => {
     // Reload daily question in case the new question should be today's question
     const today = new Date().toISOString().split("T")[0]
-    loadDailyQuestion(today)
+    await loadDailyQuestion(today)
     setShowQuestionModal(false)
+    setNoQuestionsAvailable(false)
     toast.success("¡Pregunta creada exitosamente! 🎉")
+  }
+
+  const handleCloseModal = () => {
+    setShowQuestionModal(false)
+    // If there were no questions available, reload to check if the new question is now available
+    if (noQuestionsAvailable) {
+      const today = new Date().toISOString().split("T")[0]
+      loadDailyQuestion(today)
+    }
   }
 
   // Loading states
@@ -112,7 +139,7 @@ export const CoupleGames: React.FC = () => {
               canAnswer={canAnswer}
               onAnswerSubmitted={handleAnswerSubmitted}
               onUpdateStreak={updateStreak}
-              onNewQuestion={handleNewQuestion}
+              // onNewQuestion={handleNewQuestion}
             />
           ) : (
 
@@ -156,16 +183,25 @@ export const CoupleGames: React.FC = () => {
                 ) : null}
 
                 {/* Mensaje indicando que no hay preguntas disponibles */}
-                {partnerLinked && !dailyQuestion ? (
+                {partnerLinked && !dailyQuestion && canAnswer ? (
                   <div className="text-center space-y-4">
-                    <div className="p-8 bg-gradient-to-br from-gray-50 to-white rounded-xl border border-gray-200 shadow-inner">
-                      <h3 className="text-2xl font-bold mb-2">¡Sin más preguntas por ahora! 🎉</h3>
-                      <p className="text-gray-600 mb-4">
-                        Ya respondieron todas las preguntas activas. Crea nuevas para seguir jugando.
+                    <div className="p-8 bg-gradient-to-br from-orange-50 to-red-50 rounded-xl border border-orange-200 shadow-inner">
+                      <div className="flex justify-center mb-4">
+                        <AlertCircle className="h-12 w-12 text-orange-500" />
+                      </div>
+                      <h3 className="text-2xl font-bold mb-2 text-orange-800">¡No hay preguntas activas disponibles!</h3>
+                      <p className="text-orange-700 mb-6">
+                        Todas las preguntas han sido respondidas o desactivadas. 
+                        <br />
+                        <strong>Crea una nueva pregunta para continuar jugando.</strong>
                       </p>
                       <div className="flex justify-center gap-2">
-                        <Button onClick={() => setShowQuestionModal(true)}>
-                          Agregar nueva pregunta
+                        <Button 
+                          onClick={() => setShowQuestionModal(true)}
+                          className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Crear Nueva Pregunta
                         </Button>
                         <Button variant="outline" onClick={handleNewQuestion}>
                           Reintentar
@@ -175,14 +211,17 @@ export const CoupleGames: React.FC = () => {
                   </div>
                 ) : null}
 
-                <Button
-                  onClick={handleStartGame}
-                  size="lg"
-                  disabled={!partnerLinked || !canAnswer || !dailyQuestion}
-                  className="min-w-[200px] bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-                >
-                  {!canAnswer ? "Vuelve Mañana" : "Comenzar Pregunta Diaria"}
-                </Button>
+                {/* Botón de inicio del juego - solo si hay pregunta disponible */}
+                {dailyQuestion && (
+                  <Button
+                    onClick={handleStartGame}
+                    size="lg"
+                    disabled={!partnerLinked || !canAnswer || !dailyQuestion}
+                    className="min-w-[200px] bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                  >
+                    {!canAnswer ? "Vuelve Mañana" : "Comenzar Pregunta Diaria"}
+                  </Button>
+                )}
               </div>
             </div>
           )}
@@ -203,7 +242,7 @@ export const CoupleGames: React.FC = () => {
       {/* Question Creation Modal */}
       <QuestionFormModal
         isOpen={showQuestionModal}
-        onClose={() => setShowQuestionModal(false)}
+        onClose={handleCloseModal}
         onQuestionCreated={handleQuestionCreated}
       />
     </div>
