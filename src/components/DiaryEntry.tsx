@@ -149,10 +149,12 @@ export const DiaryEntry: React.FC<DiaryEntryProps> = ({ entry, onEdit }) => {
 
   const formattedDate = useMemo(() => {
     try {
-      return new Date(entry.date).toISOString().split("T")[0]
-    } catch (e) {
-      console.error("Error formatting date:", e)
-      return "Fecha inválida"
+      // Construir fecha desde el string YYYY-MM-DD sin interpretarla como UTC
+      const [y, m, d] = entry.date.split('-').map(Number)
+      const localDate = new Date(y, (m - 1), d)
+      return localDate.toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })
+    } catch {
+      return entry.date
     }
   }, [entry.date])
 
@@ -251,9 +253,9 @@ export const DiaryEntry: React.FC<DiaryEntryProps> = ({ entry, onEdit }) => {
                     initial={
                       isFlipping
                         ? {
-                            rotateY: flipDirection === "next" ? -90 : 90,
-                            opacity: 0,
-                          }
+                          rotateY: flipDirection === "next" ? -90 : 90,
+                          opacity: 0,
+                        }
                         : { rotateY: 0, opacity: 1 }
                     }
                     animate={{ rotateY: 0, opacity: 1 }}

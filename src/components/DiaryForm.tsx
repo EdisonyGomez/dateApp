@@ -63,6 +63,15 @@ const moodOptions = [
   { value: 'proud', label: '😎 Proud' }
 ] as const
 
+
+// 1) Añade este helper arriba del componente:
+const getLocalDateISO = () => {
+  const now = new Date()
+  // Ajuste inverso del offset para quedarnos con fecha local
+  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+  return local.toISOString().split('T')[0]
+}
+
 export const DiaryForm: React.FC<DiaryFormProps> = ({ entry, onSave, onCancel }) => {
   const { user } = useAuth()
   const [formData, setFormData] = useState({
@@ -70,7 +79,7 @@ export const DiaryForm: React.FC<DiaryFormProps> = ({ entry, onSave, onCancel })
     content: '',
     mood: 'neutral' as DiaryEntry['mood'],
     isPrivate: false,
-    date: new Date().toISOString().split('T')[0],
+    date: getLocalDateISO(),   // ← antes: new Date().toISOString().split('T')[0]
     photos: [] as string[]
   })
   const [uploading, setUploading] = useState(false)
@@ -117,7 +126,7 @@ export const DiaryForm: React.FC<DiaryFormProps> = ({ entry, onSave, onCancel })
         content: '',
         mood: 'neutral',
         isPrivate: false,
-        date: new Date().toISOString().split('T')[0],
+        date: getLocalDateISO(),
         photos: []
       })
     }
