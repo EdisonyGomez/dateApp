@@ -71,7 +71,7 @@ export const QuestionFormModal: React.FC<QuestionFormModalProps> = ({ isOpen, on
     <Dialog
       open={isOpen}
       onOpenChange={(open) => {
-        if (!open) handleClose()
+        if (!open) onClose()
       }}
     >
 

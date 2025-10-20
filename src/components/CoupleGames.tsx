@@ -1,6 +1,6 @@
 "use client"
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Heart, Plus, Sparkles, AlertCircle } from "lucide-react"
@@ -16,6 +16,7 @@ import {
   useReactions,
 } from "@/hooks/useGameHooks"
 import { GameService } from "@/lib/GameService"
+import { useReplies } from '@/hooks/useGameHooks'
 
 // Components
 import { GameStats } from "./GameStats"
@@ -36,20 +37,35 @@ export const CoupleGames: React.FC = () => {
   const { canAnswer, loading: canAnswerLoading } = useCanAnswer()
   const { responses, addResponse } = useGameResponses()
   const { reactions, toggleReaction } = useReactions(responses)
+  const { repliesByResponse, addReply } = useReplies(responses)
+
+    // ← abre sólo una vez por día
+  const autoOpenedForDayRef = useRef<string | null>(null)
+
 
   // Effect to check if no questions are available and auto-open modal
   useEffect(() => {
+  
+      const today = new Date().toISOString().split("T")[0]
+
+      const shouldAutoOpen =
+      !questionLoading && !dailyQuestion && partnerLinked && canAnswer
+
+
     if (!questionLoading && !dailyQuestion && partnerLinked && canAnswer) {
       setNoQuestionsAvailable(true)
       // Auto-open modal after a short delay to let the UI render
       const timer = setTimeout(() => {
         setShowQuestionModal(true)
         toast.info("No hay preguntas activas disponibles. ¡Crea una nueva para continuar jugando!")
-      }, 500)
+      }, 200)
       return () => clearTimeout(timer)
-    } else {
+    } 
+    
+       if (!shouldAutoOpen) {
       setNoQuestionsAvailable(false)
     }
+
   }, [questionLoading, dailyQuestion, partnerLinked, canAnswer])
 
   // Handlers
@@ -81,14 +97,10 @@ export const CoupleGames: React.FC = () => {
     toast.success("¡Pregunta creada exitosamente! 🎉")
   }
 
-  const handleCloseModal = () => {
-    setShowQuestionModal(false)
-    // If there were no questions available, reload to check if the new question is now available
-    if (noQuestionsAvailable) {
-      const today = new Date().toISOString().split("T")[0]
-      loadDailyQuestion(today)
-    }
-  }
+const handleCloseModal = () => {
+  // Sólo cierra. NO recargues aquí.
+  setShowQuestionModal(false)
+}
 
   // Loading states
   if (partnerLoading || questionLoading || canAnswerLoading) {
@@ -139,7 +151,7 @@ export const CoupleGames: React.FC = () => {
               canAnswer={canAnswer}
               onAnswerSubmitted={handleAnswerSubmitted}
               onUpdateStreak={updateStreak}
-              // onNewQuestion={handleNewQuestion}
+            // onNewQuestion={handleNewQuestion}
             />
           ) : (
 
@@ -191,12 +203,12 @@ export const CoupleGames: React.FC = () => {
                       </div>
                       <h3 className="text-2xl font-bold mb-2 text-orange-800">¡No hay preguntas activas disponibles!</h3>
                       <p className="text-orange-700 mb-6">
-                        Todas las preguntas han sido respondidas o desactivadas. 
+                        Todas las preguntas han sido respondidas o desactivadas.
                         <br />
                         <strong>Crea una nueva pregunta para continuar jugando.</strong>
                       </p>
                       <div className="flex justify-center gap-2">
-                        <Button 
+                        <Button
                           onClick={() => setShowQuestionModal(true)}
                           className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
                         >
@@ -233,7 +245,13 @@ export const CoupleGames: React.FC = () => {
                 <Heart className="h-5 w-5 text-pink-500" />
                 <h3 className="text-lg font-semibold text-gray-800">Respuestas Anteriores</h3>
               </div>
-              <GameResponsesList responses={responses} reactions={reactions} onToggleReaction={toggleReaction} />
+              <GameResponsesList
+                responses={responses}
+                reactions={reactions}
+                onToggleReaction={toggleReaction}
+                repliesByResponse={repliesByResponse}
+                onAddReply={addReply}
+              />
             </div>
           )}
         </CardContent>

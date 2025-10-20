@@ -1,7 +1,9 @@
 // hooks/useGameHooks.ts
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { GameService } from '@/lib/GameService'
-import { GameStreak, GameResponse, GameReaction, ReactionSummary, DailyQuestion } from '@/types'
+import { GameStreak, GameResponse, GameReaction, 
+          ReactionSummary, DailyQuestion, GameResponseReply,
+          RepliesByResponseId} from '@/types'
 import { useAuth } from '@/contexts/AuthProvider'
 import { toast } from 'sonner'
 
@@ -323,3 +325,80 @@ export const useReactions = (responses: GameResponse[]) => {
   return { reactions, toggleReaction, loadReactions }
 }
 
+
+export const useReplies = (responses: GameResponse[]) => {
+  const { user } = useAuth()
+  const [loading, setLoading] = useState(false)
+  const [repliesByResponse, setRepliesByResponse] = useState<RepliesByResponseId>({})
+
+  const responseIds = useMemo(
+    () => responses.map((r) => r.id).filter(Boolean),
+    [responses],
+  )
+
+  const loadReplies = useCallback(async () => {
+    if (!user || responseIds.length === 0) return
+    setLoading(true)
+    try {
+      const replies = await GameService.getRepliesForResponses({
+        userId: user.id,
+        responseIds,
+      })
+      const grouped: RepliesByResponseId = {}
+      for (const r of replies) {
+        if (!grouped[r.response_id]) grouped[r.response_id] = []
+        grouped[r.response_id].push(r)
+      }
+      // orden cronológico ascendente (opcional)
+      for (const key of Object.keys(grouped)) {
+        grouped[key].sort((a, b) => a.created_at.localeCompare(b.created_at))
+      }
+      setRepliesByResponse(grouped)
+    } catch (e: any) {
+      console.error(e)
+      toast.error(e?.message ?? 'No fue posible cargar las réplicas.')
+    } finally {
+      setLoading(false)
+    }
+  }, [user, responseIds])
+
+  const addReply = useCallback(
+    async (responseId: string, content: string, isPrivate = false) => {
+      if (!user) return
+      if (!content.trim()) {
+        toast.error('Escribe algo para responder.')
+        return
+      }
+      try {
+        const reply = await GameService.addReply({
+          userId: user.id,
+          responseId,
+          content: content.trim(),
+          isPrivate,
+        })
+        setRepliesByResponse((prev) => {
+          const arr = prev[responseId] ? [...prev[responseId]] : []
+          arr.push(reply)
+          return { ...prev, [responseId]: arr }
+        })
+        toast.success('Respuesta enviada ✅')
+      } catch (e: any) {
+        console.error(e)
+        toast.error(e?.message ?? 'No fue posible enviar la respuesta.')
+      }
+    },
+    [user],
+  )
+
+  useEffect(() => {
+    // Carga inicial cuando cambien las respuestas
+    loadReplies()
+  }, [loadReplies])
+
+  return {
+    loading,
+    repliesByResponse,
+    loadReplies,
+    addReply,
+  }
+}

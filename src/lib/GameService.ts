@@ -1,6 +1,6 @@
 // lib/GameService.ts
 import { supabase } from './supabase'
-import { GameQuestion, GameResponse, GameReaction, DailyQuestion } from '@/types'
+import { GameQuestion, GameResponse, GameReaction, DailyQuestion,GameResponseReply  } from '@/types'
 
 export class GameService {
 
@@ -385,6 +385,76 @@ static async answerAndDeactivateQuestion(
     }
 
     return true
+  }
+
+
+  /**
+   * Crea una réplica (reply) para una respuesta de juego.
+   * @param userId     Autor de la réplica (debe ser auth.uid())
+   * @param responseId Id de la respuesta a la que se responde
+   * @param content    Texto de la réplica
+   * @param isPrivate  Si la réplica es privada (opcional, por defecto false)
+   * @returns La réplica creada
+   */
+  static async addReply(params: {
+    userId: string
+    responseId: string
+    content: string
+    isPrivate?: boolean
+  }): Promise<GameResponseReply> {
+    const { userId, responseId, content, isPrivate = false } = params
+    const { data, error } = await supabase.rpc('fn_add_response_reply', {
+      p_user_id: userId,
+      p_response_id: responseId,
+      p_content: content,
+      p_is_private: isPrivate,
+    })
+
+    if (error) {
+      console.error('addReply error:', error)
+      throw new Error(error.message ?? 'No fue posible agregar la réplica.')
+    }
+    if (!data || data.length === 0) {
+      throw new Error('La RPC no retornó datos.')
+    }
+
+    const row = data[0]
+    const reply: GameResponseReply = {
+      id: row.id,
+      response_id: row.response_id,
+      user_id: row.user_id,
+      content: row.content,
+      is_private: row.is_private,
+      created_at: row.created_at,
+    }
+    return reply
+  }
+
+  /**
+   * Obtiene réplicas para un conjunto de respuestas.
+   * @param userId       Usuario autenticado (usado en la RPC para RLS)
+   * @param responseIds  Arreglo de ids de respuestas del juego
+   * @returns Arreglo de réplicas; puedes mapear a un diccionario en el hook
+   */
+  static async getRepliesForResponses(params: {
+    userId: string
+    responseIds: string[]
+  }): Promise<GameResponseReply[]> {
+    const { userId, responseIds } = params
+    if (!responseIds || responseIds.length === 0) return []
+
+    const { data, error } = await supabase.rpc('fn_get_replies_for_responses', {
+      p_user_id: userId,
+      p_response_ids: responseIds,
+    })
+
+    if (error) {
+      console.error('getRepliesForResponses error:', error)
+      throw new Error(error.message ?? 'No fue posible obtener las réplicas.')
+    }
+
+    // data ya devuelve filas de game_response_replies (RLS ya aplicado)
+    return (data ?? []) as GameResponseReply[]
   }
   
 }

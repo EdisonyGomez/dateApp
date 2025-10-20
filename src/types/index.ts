@@ -139,3 +139,21 @@ export interface ReactionSummary {
   count: number
   reacted: boolean
 }
+
+// src/types/index.ts (o donde definas tus tipos)
+export interface GameResponseReply {
+  id: string
+  response_id: string
+  user_id: string
+  content: string
+  is_private: boolean
+  created_at: string
+  // opcional, si sueles “embedear” el perfil del autor:
+  profiles?: {
+    id: string
+    name: string
+    avatar_url: string | null
+  }
+}
+
+export type RepliesByResponseId = Record<string, GameResponseReply[]>
