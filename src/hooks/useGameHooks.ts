@@ -92,63 +92,43 @@ export const useDailyQuestion = () => {
   const { user } = useAuth()
   const [dailyQuestion, setDailyQuestion] = useState<DailyQuestion | null>(null)
   const [loading, setLoading] = useState(true)
-  const [retryCount, setRetryCount] = useState(0)
+  const [error, setError] = useState<unknown>(null)
+  const [empty, setEmpty] = useState(false)
 
   const loadDailyQuestion = useCallback(async (date: string) => {
     setLoading(true)
-    if (!user) {
-      setDailyQuestion(null)
-      setLoading(false)
-      return
-    }
-
+    setError(null)
     try {
-      console.log(`Intentando cargar pregunta diaria para ${date}...`)
-
-      // Verificar primero si hay preguntas activas disponibles
-      const hasActive = await GameService.hasActiveQuestions()
-      console.log(`Preguntas activas disponibles: ${hasActive}`)
-
-      if (!hasActive) {
-        console.log('No hay preguntas activas disponibles')
+      if (!user) {
         setDailyQuestion(null)
-        setLoading(false)
+        setEmpty(true)
         return
       }
 
+      console.log(`Intentando cargar pregunta diaria para ${date}...`)
       const question = await GameService.getDailyQuestionForUser(user.id, date)
       console.log('Pregunta obtenida:', question)
 
-      if (question && question.game_questions?.is_active === true) {
-        setDailyQuestion(question)
-        setRetryCount(0) // Reset retry count on success
-      } else {
-        console.log('Pregunta no válida o inactiva:', question)
-        setDailyQuestion(null)
-
-        // Si hay preguntas activas pero no se obtuvo una válida, reintentar hasta 2 veces
-        if (hasActive && retryCount < 2) {
-          console.log(`Reintentando... (${retryCount + 1}/2)`)
-          setRetryCount(prev => prev + 1)
-          setTimeout(() => loadDailyQuestion(date), 1500)
-          return
-        }
-      }
-    } catch (error) {
-      console.error('Error cargando pregunta diaria:', error)
+      setDailyQuestion(question)
+      setEmpty(!question)
+    } catch (e) {
+      console.error('Error cargando pregunta diaria:', e)
+      setError(e)
       setDailyQuestion(null)
+      setEmpty(true)
+    } finally {
+      setLoading(false)
     }
-
-    setLoading(false)
-  }, [user, retryCount])
+  }, [user])
 
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0]
     loadDailyQuestion(today)
   }, [loadDailyQuestion])
 
-  return { dailyQuestion, loading, loadDailyQuestion }
+  return { dailyQuestion, loading, error, empty, loadDailyQuestion }
 }
+
 
 // Hook para verificar si el usuario puede responder
 export const useCanAnswer = () => {

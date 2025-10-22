@@ -69,20 +69,26 @@ static async answerAndDeactivateQuestion(
   }
 
   // Verificar si hay preguntas activas disponibles
-  static async hasActiveQuestions(): Promise<boolean> {
-    const { data, error } = await supabase
-      .from('game_questions')
-      .select('id')
-      .eq('is_active', true)
-      .limit(1)
+  // static async hasActiveQuestions(): Promise<boolean> {
+  //   const { data, error } = await supabase
+  //     .from('game_questions')
+  //     .select('id')
+  //     .eq('is_active', true)
+  //     .limit(1)
 
-    if (error) {
-      console.error('Error checking active questions:', error)
-      return false
-    }
+  //   if (error) {
+  //     console.error('Error checking active questions:', error)
+  //     return false
+  //   }
 
-    return data && data.length > 0
-  }
+  //   return data && data.length > 0
+  // }
+
+
+  
+
+
+
 
   // Crear una nueva pregunta personalizada
   static async createCustomQuestion(question: GameQuestion): Promise<GameQuestion | null> {
@@ -156,18 +162,20 @@ static async answerAndDeactivateQuestion(
     throw new Error('Call getDailyQuestionForUser(userId, date) instead');
   }
 
-  static async getDailyQuestionForUser(userId: string, date: string, category?: string): Promise<DailyQuestion | null> {
-  const { data, error } = await supabase.rpc('fn_get_or_create_today_question_by_user', {
-    p_user_id: userId,
-    p_date: date,
-    p_category: category ?? null
-  })
+  static async getDailyQuestionForUser(userId: string, date: string, category?: string): Promise<DailyQuestion | null> {  
+ const { data, error } = await supabase
+    .rpc('fn_get_or_create_today_question_by_user', {
+      p_user_id: userId,
+      p_date: date,
+      p_category: category ?? null,
+    })
+    .maybeSingle()
 
   if (error) {
     console.error('Error fetching daily question RPC:', error)
     return null
   }
-  if (!data || data.length === 0) return null
+  if (!data) return null
 
   const row = data[0]
   const gq = row.game_questions
