@@ -162,28 +162,38 @@ static async answerAndDeactivateQuestion(
     throw new Error('Call getDailyQuestionForUser(userId, date) instead');
   }
 
-  static async getDailyQuestionForUser(userId: string, date: string, category?: string): Promise<DailyQuestion | null> {  
- const { data, error } = await supabase
+  static async getDailyQuestionForUser(
+  userId: string,
+  date: string,
+  category?: string
+): Promise<DailyQuestion | null> {
+  const { data, error } = await supabase
     .rpc('fn_get_or_create_today_question_by_user', {
       p_user_id: userId,
       p_date: date,
-      p_category: category ?? null,
+      p_category: category ?? null
     })
-    .maybeSingle()
 
   if (error) {
     console.error('Error fetching daily question RPC:', error)
     return null
   }
-  if (!data) return null
 
-  const row = data[0]
-  const gq = row.game_questions
-  if (!gq || gq.is_active !== true) return null
+  // Si la RPC devuelve arreglo vacío o null
+  if (!data || data.length === 0) return null
+
+  // Si viene como objeto único (por maybeSingle o variante RPC)
+  const row = Array.isArray(data) ? data[0] : data
+  const gq = row.game_questions ?? row.game_question ?? null
+
+  if (!gq || gq.is_active !== true) {
+    console.warn('Pregunta no válida o sin bloque game_questions:', row)
+    return null
+  }
 
   return {
-    id: row.id,
-    question_id: row.question_id ?? row.qid,
+    id: row.id ?? gq.id,
+    question_id: row.question_id ?? row.qid ?? gq.id,
     date: row.date,
     created_at: row.created_at,
     game_questions: {
@@ -196,6 +206,7 @@ static async answerAndDeactivateQuestion(
     }
   }
 }
+
 
 
   static async createDailyQuestion(date: string): Promise<DailyQuestion | null> {
