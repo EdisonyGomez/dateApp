@@ -1,13 +1,17 @@
 "use client"
 import type React from "react"
 import { useEffect, useState } from "react"
-import { DialogClose } from "@/components/ui/dialog"
 import { useNavigate } from "react-router-dom"
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { UserAvatar } from "@/components/UserAvatar"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/AuthProvider" // Importar useAuth
+
+import {
+  Dialog, DialogContent, DialogTrigger, DialogClose,
+  DialogHeader, DialogTitle, DialogDescription
+} from "@/components/ui/dialog"
+
 import {
   Calendar,
   Edit,
@@ -37,6 +41,8 @@ interface ProfileModalProps {
   userId: string
   fallbackColor?: string
   isCurrentUser?: boolean
+  initialProfile?: { name?: string; avatar_url?: string | null }
+
 }
 
 interface WatchedMediaItem {
@@ -45,8 +51,13 @@ interface WatchedMediaItem {
   partner_rating: number | null
 }
 
-export const ProfileModal: React.FC<ProfileModalProps> = ({ userId, fallbackColor, isCurrentUser = false }) => {
-  const { user, partner } = useAuth() // Obtener el usuario actual y su pareja
+export const ProfileModal: React.FC<ProfileModalProps> = ({
+  userId,
+  fallbackColor,
+  isCurrentUser = false,
+  initialProfile, // 👈 NUEVO
+}) => {
+  const { user, partner, profile: selfProfile } = useAuth() // Obtener el usuario actual y su pareja
   const [profile, setProfile] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
@@ -54,15 +65,26 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ userId, fallbackColo
   const navigate = useNavigate()
 
   useEffect(() => {
-    const fetchProfileData = async () => {
-      setLoading(true)
-      let mainProfileData: any = null
-      let partnerProfileData: any = null
+    // 🚫 No hagas nada si el modal está cerrado
+    if (!isOpen) return;
 
-      // 1. Obtener el perfil principal (el que se está visualizando)
-      const { data: mainData, error: mainError } = await supabase
-        .from("profiles")
-        .select(`
+    // Vamos a cargar datos solo lo necesario
+    const run = async () => {
+      setLoading(true);
+
+      let mainProfileData: any = null;
+      let partnerProfileData: any = null;
+
+      // ✅ Si estoy viendo MI perfil y ya tengo selfProfile del AuthProvider,
+      // no consultes a la red para el principal.
+      const viewingOwnProfile = isCurrentUser && user?.id === userId;
+      if (viewingOwnProfile && selfProfile) {
+        mainProfileData = selfProfile;
+      } else {
+        // Perfil principal (otra persona o no hay selfProfile aún)
+        const { data: mainData, error: mainError } = await supabase
+          .from("profiles")
+          .select(`
           id, name, avatar_url, birthday, meet_date, chinese_day,
           languages, profession, favorite_foods, hobbies,
           favorite_music, favorite_songs, favorite_movies,
@@ -70,77 +92,78 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ userId, fallbackColo
           dream_destinations, future_goals, love_languages, pet_names, relationship_milestones,
           watched_media
         `)
-        .eq("id", userId)
-        .single()
+          .eq("id", userId)
+          .single();
 
-      if (mainError) {
-        console.error("Error fetching main profile:", mainError)
-        setLoading(false)
-        return
+        if (mainError) {
+          console.error("Error fetching main profile:", mainError);
+          setLoading(false);
+          return;
+        }
+        mainProfileData = mainData;
       }
-      mainProfileData = mainData
 
-      // 2. Si el usuario actual está viendo su propio perfil y tiene una pareja, obtener el perfil de la pareja
-      if (isCurrentUser && partner?.id) {
+      // Solo si es MI perfil y tengo pareja: trae watched_media de la pareja
+      if (viewingOwnProfile && partner?.id) {
         const { data: partnerData, error: partnerError } = await supabase
           .from("profiles")
-          .select(`watched_media`) // Solo necesitamos el campo watched_media del perfil de la pareja
+          .select("watched_media")
           .eq("id", partner.id)
-          .single()
+          .single();
 
-        if (partnerError) {
-          console.warn("Error fetching partner profile for watched media:", partnerError)
-          // Continuar sin los datos de la pareja si hay un error
+        if (!partnerError) {
+          partnerProfileData = partnerData;
         } else {
-          partnerProfileData = partnerData
+          console.warn("Error fetching partner profile for watched media:", partnerError);
         }
       }
 
-      // 3. Combinar los datos de watched_media
-      const combinedWatchedMediaMap = new Map<string, WatchedMediaItem>()
+      // Combinar watched_media (misma lógica de antes)
+      const combined = new Map<string, { title: string; your_rating: number | null; partner_rating: number | null }>();
 
-      // Añadir los medios vistos del perfil principal
-      if (mainProfileData.watched_media) {
-        mainProfileData.watched_media.forEach((item: WatchedMediaItem) => {
-          combinedWatchedMediaMap.set(item.title.toLowerCase(), {
+      if (mainProfileData?.watched_media) {
+        for (const item of mainProfileData.watched_media) {
+          combined.set(item.title.toLowerCase(), {
             title: item.title,
-            your_rating: item.your_rating, // Esta es la puntuación del usuario principal
-            partner_rating: item.partner_rating, // Esta es la puntuación de la pareja registrada por el usuario principal
-          })
-        })
+            your_rating: item.your_rating,
+            partner_rating: item.partner_rating,
+          });
+        }
       }
 
-      // Añadir los medios vistos del perfil de la pareja (si aplica)
-      if (partnerProfileData && partnerProfileData.watched_media) {
-        partnerProfileData.watched_media.forEach((item: WatchedMediaItem) => {
-          const existing = combinedWatchedMediaMap.get(item.title.toLowerCase())
-          if (existing) {
-            // Si la película/serie ya existe, actualizamos la puntuación de la pareja
-            // (que es 'your_rating' desde la perspectiva de la pareja)
-            existing.partner_rating = item.your_rating
+      if (partnerProfileData?.watched_media) {
+        for (const item of partnerProfileData.watched_media) {
+          const k = item.title.toLowerCase();
+          const prev = combined.get(k);
+          if (prev) {
+            prev.partner_rating = item.your_rating;
           } else {
-            // Si la película/serie no existe en la lista del usuario principal, la añadimos
-            // La puntuación del usuario principal será null (ya que no la añadió)
-            // y la puntuación de la pareja será su 'your_rating'
-            combinedWatchedMediaMap.set(item.title.toLowerCase(), {
+            combined.set(k, {
               title: item.title,
-              your_rating: item.partner_rating, // La puntuación del usuario principal (si la pareja la registró)
-              partner_rating: item.your_rating, // La puntuación de la pareja
-            })
+              your_rating: item.partner_rating ?? null,
+              partner_rating: item.your_rating ?? null,
+            });
           }
-        })
+        }
       }
 
-      // Establecer el perfil con la lista combinada de medios vistos
       setProfile({
         ...mainProfileData,
-        watched_media: Array.from(combinedWatchedMediaMap.values()),
-      })
-      setLoading(false)
-    }
+        watched_media: Array.from(combined.values()),
+      });
+      setLoading(false);
+    };
 
-    if (userId) fetchProfileData()
-  }, [userId, isCurrentUser, partner?.id]) // Dependencias para re-ejecutar el efecto
+    run();
+  }, [
+    isOpen,         // 👈 solo cuando se abre el modal
+    userId,
+    isCurrentUser,
+    user?.id,
+    partner?.id,
+    selfProfile,    // 👈 para rehidratación si cambia el profile del AuthProvider
+  ]);
+
 
   const renderViewField = (
     icon: React.ElementType,
@@ -264,10 +287,24 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ userId, fallbackColo
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogTrigger asChild>
           <span className="cursor-pointer inline-flex transition-all duration-300 hover:scale-110 hover:rotate-2">
-            <UserAvatar name="Cargando" size="xl" fallbackColor={fallbackColor} />
+            <UserAvatar
+              // 👇 usa los datos iniciales para que el avatar se vea siempre
+              name={initialProfile?.name || "Usuario"}
+              avatarUrl={initialProfile?.avatar_url || undefined}
+              size="xl"
+              fallbackColor={fallbackColor}
+            />
           </span>
         </DialogTrigger>
+
         <DialogContent className="w-[500px] bg-gradient-to-br from-pink-50 to-white rounded-3xl p-8 shadow-2xl border-0 overflow-hidden">
+          <DialogHeader className="sr-only"> {/* quita sr-only si los quieres visibles */}
+            <DialogTitle>Perfil de {profile?.name ?? "Usuario"}</DialogTitle>
+            <DialogDescription>
+              Información del perfil, gustos y medios vistos.
+            </DialogDescription>
+          </DialogHeader>
+
           <DialogClose asChild>
             <button className="absolute top-4 right-4 z-50 group">
               <div className="relative">
@@ -301,13 +338,15 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ userId, fallbackColo
       <DialogTrigger asChild>
         <span className="cursor-pointer inline-flex transition-all duration-300 hover:scale-110 hover:rotate-2 hover:shadow-lg rounded-full">
           <UserAvatar
-            name={profile?.name || "Usuario"}
-            avatarUrl={profile?.avatar_url}
+            // 👇 muestra inmediatamente el avatar con initialProfile (y si luego hay profile, mejor)
+            name={profile?.name || initialProfile?.name || "Usuario"}
+            avatarUrl={(profile?.avatar_url ?? initialProfile?.avatar_url) || undefined}
             size="xl"
             fallbackColor={fallbackColor}
           />
         </span>
       </DialogTrigger>
+
       <DialogContent className="w-[1200px] max-w-[95vw] h-[90vh] overflow-hidden bg-gradient-to-br from-white via-pink-50 to-rose-50 rounded-3xl p-0 shadow-2xl border-0">
         <DialogClose asChild>
           <button className="absolute top-6 right-6 z-50 group">

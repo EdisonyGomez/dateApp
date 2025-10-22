@@ -2,21 +2,29 @@
 
 // src/components/DiaryEntry.tsx
 import type React from "react"
-import { useState, useEffect, useMemo } from "react"
+import { useMemo, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { useAuth } from "@/contexts/AuthProvider"
-import { supabase } from "@/lib/supabase"
+// ⛔️ Eliminado: import { supabase } from "@/lib/supabase"
 import type { DiaryEntry as DiaryEntryType } from "@/types"
 import { ProfileModal } from "@/pages/ProfileModal"
 import { Calendar, Lock, Unlock, Edit } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 
+/**
+ * Props extendidas para recibir el autor ya resuelto desde el join:
+ * Asegúrate que el hook contenedor (useDiaryEntries) haga:
+ *   select(..., profiles(id, name, avatar_url))
+ */
 interface DiaryEntryProps {
-  entry: DiaryEntryType
+  entry: DiaryEntryType & {
+    profiles?: { id: string; name: string; avatar_url?: string | null } | null
+  }
   onEdit?: (entry: DiaryEntryType) => void
 }
 
+/** Mapas de estado de ánimo: UI */
 const moodEmojis = {
   happy: "😊",
   sad: "😢",
@@ -77,43 +85,43 @@ const moodColors = {
 
 type MoodKey = keyof typeof moodEmojis
 
+/**
+ * Componente de entrada del diario
+ * - Sin side-effects de red: NO llama a supabase
+ * - Toma el nombre del autor desde entry.profiles?.name o del usuario actual si es propio
+ * - Optimiza render (useMemo) para partes derivadas costosas
+ */
 export const DiaryEntry: React.FC<DiaryEntryProps> = ({ entry, onEdit }) => {
   const { user } = useAuth()
   const isOwn = entry.userId === user?.id
-  const [authorName, setAuthorName] = useState<string>("Cargando...")
   const validatedMood = entry.mood as MoodKey
 
+  // Estado UI (paginación/libro)
   const [currentPage, setCurrentPage] = useState(0)
   const [isBookOpen, setIsBookOpen] = useState(false)
   const [isFlipping, setIsFlipping] = useState(false)
   const [flipDirection, setFlipDirection] = useState<"next" | "prev">("next")
 
-  const CHARS_PER_PAGE = 400
-  const LINES_PER_PAGE = 12
-
+  // Derivados
   const pages = useMemo(() => {
     if (!entry.content) return []
+    const CHARS_PER_PAGE = 400
 
     const paragraphs = entry.content.split(/\n\s*\n/)
-    const pages: string[] = []
-    let currentPageContent = ""
+    const out: string[] = []
+    let cur = ""
 
-    for (const paragraph of paragraphs) {
-      const testContent = currentPageContent + (currentPageContent ? "\n\n" : "") + paragraph
-
-      if (testContent.length > CHARS_PER_PAGE && currentPageContent) {
-        pages.push(currentPageContent)
-        currentPageContent = paragraph
+    for (const p of paragraphs) {
+      const test = cur + (cur ? "\n\n" : "") + p
+      if (test.length > CHARS_PER_PAGE && cur) {
+        out.push(cur)
+        cur = p
       } else {
-        currentPageContent = testContent
+        cur = test
       }
     }
-
-    if (currentPageContent) {
-      pages.push(currentPageContent)
-    }
-
-    return pages.length > 0 ? pages : [entry.content]
+    if (cur) out.push(cur)
+    return out.length > 0 ? out : [entry.content]
   }, [entry.content])
 
   const totalPages = pages.length
@@ -122,37 +130,20 @@ export const DiaryEntry: React.FC<DiaryEntryProps> = ({ entry, onEdit }) => {
   const wordCount = useMemo(() => entry.content?.trim()?.split(/\s+/).length ?? 0, [entry.content])
   const readMinutes = Math.max(1, Math.round(wordCount / 210))
 
-  useEffect(() => {
-    if (isOwn && user) {
-      setAuthorName(user.user_metadata?.name || user.email || "Yo")
-      return
-    }
+  // ✅ Autor sin N+1: propio -> user metadata; ajeno -> profiles.name
+  const authorName = useMemo(() => {
+    if (isOwn) return user?.user_metadata?.name || user?.email || "Yo"
+    return entry.profiles?.name || "Compañero"
+  }, [isOwn, user?.user_metadata?.name, user?.email, entry.profiles?.name])
 
-    const fetchAuthor = async () => {
-      setAuthorName("Cargando...")
-      const { data, error } = await supabase.from("profiles").select("name").eq("id", entry.userId).single()
-
-      if (error) {
-        console.error("Error fetching author name:", error)
-        setAuthorName("Desconocido")
-      } else {
-        setAuthorName(data?.name || "Compañero")
-      }
-    }
-    fetchAuthor()
-  }, [entry.userId, isOwn, user])
-
-  const { alignment } = useMemo(() => {
-    const align = isOwn ? "justify-end" : "justify-start"
-    return { alignment: align }
-  }, [isOwn])
+  // Alineación y fecha
+  const alignment = isOwn ? "justify-end" : "justify-start"
 
   const formattedDate = useMemo(() => {
     try {
-      // Construir fecha desde el string YYYY-MM-DD sin interpretarla como UTC
-      const [y, m, d] = entry.date.split('-').map(Number)
-      const localDate = new Date(y, (m - 1), d)
-      return localDate.toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })
+      const [y, m, d] = entry.date.split("-").map(Number)
+      const localDate = new Date(y, m - 1, d)
+      return localDate.toLocaleDateString("es-CO", { timeZone: "America/Bogota" })
     } catch {
       return entry.date
     }
@@ -160,20 +151,15 @@ export const DiaryEntry: React.FC<DiaryEntryProps> = ({ entry, onEdit }) => {
 
   const handlePageChange = (direction: "next" | "prev") => {
     if (isFlipping) return
-
     setIsFlipping(true)
     setFlipDirection(direction)
-
     setTimeout(() => {
       if (direction === "next" && currentPage < totalPages - 1) {
-        setCurrentPage(currentPage + 1)
+        setCurrentPage((p) => p + 1)
       } else if (direction === "prev" && currentPage > 0) {
-        setCurrentPage(currentPage - 1)
+        setCurrentPage((p) => p - 1)
       }
-
-      setTimeout(() => {
-        setIsFlipping(false)
-      }, 300)
+      setTimeout(() => setIsFlipping(false), 300)
     }, 300)
   }
 
@@ -197,6 +183,7 @@ export const DiaryEntry: React.FC<DiaryEntryProps> = ({ entry, onEdit }) => {
           `,
         }}
       >
+        {/* Header de la tarjeta */}
         <div
           className={cn(
             "flex items-center mb-3 p-4 border-b",
@@ -208,18 +195,20 @@ export const DiaryEntry: React.FC<DiaryEntryProps> = ({ entry, onEdit }) => {
           <div className="mr-3">
             <ProfileModal
               userId={entry.userId}
+              isCurrentUser={isOwn}
+              // 👇 pasa el perfil ya venido del join para que el avatar/nombre estén listos
+              initialProfile={{
+                name: entry.profiles?.name,
+                avatar_url: entry.profiles?.avatar_url ?? null,
+              }}
               fallbackColor={isOwn ? "bg-rose-200 text-rose-800" : "bg-indigo-200 text-indigo-800"}
             />
           </div>
           <div className="flex-1">
-            <h3
-              className={cn("text-lg font-bold leading-tight font-serif", isOwn ? "text-rose-800" : "text-indigo-800")}
-            >
+            <h3 className={cn("text-lg font-bold leading-tight font-serif", isOwn ? "text-rose-800" : "text-indigo-800")}>
               {entry.title}
             </h3>
-            <div
-              className={cn("text-xs flex items-center gap-1 font-medium", isOwn ? "text-rose-600" : "text-indigo-600")}
-            >
+            <div className={cn("text-xs flex items-center gap-1 font-medium", isOwn ? "text-rose-600" : "text-indigo-600")}>
               <Calendar className="h-3 w-3" />
               <span>
                 {formattedDate} • {authorName}
@@ -233,6 +222,7 @@ export const DiaryEntry: React.FC<DiaryEntryProps> = ({ entry, onEdit }) => {
           </div>
         </div>
 
+        {/* Contenido / libro */}
         <div className="px-4 pb-2">
           {!isBookOpen && hasMultiplePages ? (
             <div
@@ -311,28 +301,12 @@ export const DiaryEntry: React.FC<DiaryEntryProps> = ({ entry, onEdit }) => {
                           : "text-indigo-700 hover:text-indigo-900 hover:bg-indigo-100 hover:shadow-md transform hover:-translate-y-0.5",
                     )}
                   >
-                    <motion.span
-                      className="text-lg"
-                      animate={isFlipping && flipDirection === "prev" ? { rotateY: [0, -15, 0] } : {}}
-                      transition={{ duration: 0.6 }}
-                    >
-                      📖
-                    </motion.span>
+                    <span className="text-lg">📖</span>
                     Página anterior
                   </button>
 
-                  <div
-                    className={cn(
-                      "flex items-center gap-2 text-sm font-medium",
-                      isOwn ? "text-rose-600" : "text-indigo-600",
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "px-3 py-1 rounded-full border",
-                        isOwn ? "bg-rose-100 border-rose-200" : "bg-indigo-100 border-indigo-200",
-                      )}
-                    >
+                  <div className={cn("flex items-center gap-2 text-sm font-medium", isOwn ? "text-rose-600" : "text-indigo-600")}>
+                    <span className={cn("px-3 py-1 rounded-full border", isOwn ? "bg-rose-100 border-rose-200" : "bg-indigo-100 border-indigo-200")}>
                       {currentPage + 1} de {totalPages}
                     </span>
                   </div>
@@ -351,14 +325,7 @@ export const DiaryEntry: React.FC<DiaryEntryProps> = ({ entry, onEdit }) => {
                           : "text-indigo-700 hover:text-indigo-900 hover:bg-indigo-100 hover:shadow-md transform hover:-translate-y-0.5",
                     )}
                   >
-                    Página siguiente
-                    <motion.span
-                      className="text-lg"
-                      animate={isFlipping && flipDirection === "next" ? { rotateY: [0, 15, 0] } : {}}
-                      transition={{ duration: 0.6 }}
-                    >
-                      📖
-                    </motion.span>
+                    Página siguiente <span className="text-lg">📖</span>
                   </button>
                 </div>
               )}
@@ -366,34 +333,7 @@ export const DiaryEntry: React.FC<DiaryEntryProps> = ({ entry, onEdit }) => {
           )}
         </div>
 
-        <div
-          className={cn(
-            "px-4 pb-3 flex items-center justify-between text-xs",
-            isOwn ? "text-rose-700/80" : "text-indigo-700/80",
-          )}
-        >
-          <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1">⏱️ {readMinutes} min</span>
-            {hasMultiplePages && <span className="flex items-center gap-1">📚 {totalPages} páginas</span>}
-          </div>
-
-          {hasMultiplePages && (
-            <button
-              onClick={() => {
-                setIsBookOpen(!isBookOpen)
-                if (!isBookOpen) setCurrentPage(0)
-              }}
-              className={cn(
-                "font-medium transition-colors duration-200 hover:underline",
-                isOwn ? "text-rose-600 hover:text-rose-800" : "text-indigo-600 hover:text-indigo-800",
-              )}
-              aria-label={isBookOpen ? "Cerrar libro" : "Abrir libro"}
-            >
-              {isBookOpen ? "📕 Cerrar libro" : "📖 Abrir libro"}
-            </button>
-          )}
-        </div>
-
+        {/* Fotos */}
         {entry.photos && entry.photos.length > 0 && (
           <div className="mx-4 mb-3 grid grid-cols-2 gap-2">
             {entry.photos.map((photo, idx) => (
@@ -410,17 +350,13 @@ export const DiaryEntry: React.FC<DiaryEntryProps> = ({ entry, onEdit }) => {
                   className="object-cover aspect-square w-full h-full"
                   loading="lazy"
                 />
-                <div
-                  className={cn(
-                    "absolute inset-0 border-4 pointer-events-none",
-                    isOwn ? "border-rose-100/50" : "border-indigo-100/50",
-                  )}
-                ></div>
+                <div className={cn("absolute inset-0 border-4 pointer-events-none", isOwn ? "border-rose-100/50" : "border-indigo-100/50")} />
               </div>
             ))}
           </div>
         )}
 
+        {/* Privacidad y editar */}
         <div className={cn("mx-4 mb-3 flex items-center text-xs", isOwn ? "justify-end" : "justify-start")}>
           {entry.isPrivate ? (
             <Lock className={cn("h-3 w-3 mr-1", isOwn ? "text-rose-500" : "text-indigo-500")} />
@@ -447,30 +383,11 @@ export const DiaryEntry: React.FC<DiaryEntryProps> = ({ entry, onEdit }) => {
           </div>
         )}
 
-        <div
-          className={cn(
-            "absolute top-2 left-2 w-3 h-3 border-l-2 border-t-2 rounded-tl-lg opacity-60",
-            isOwn ? "border-rose-300" : "border-indigo-300",
-          )}
-        ></div>
-        <div
-          className={cn(
-            "absolute top-2 right-2 w-3 h-3 border-r-2 border-t-2 rounded-tr-lg opacity-60",
-            isOwn ? "border-rose-300" : "border-indigo-300",
-          )}
-        ></div>
-        <div
-          className={cn(
-            "absolute bottom-2 left-2 w-3 h-3 border-l-2 border-b-2 rounded-bl-lg opacity-60",
-            isOwn ? "border-rose-300" : "border-indigo-300",
-          )}
-        ></div>
-        <div
-          className={cn(
-            "absolute bottom-2 right-2 w-3 h-3 border-r-2 border-b-2 rounded-br-lg opacity-60",
-            isOwn ? "border-rose-300" : "border-indigo-300",
-          )}
-        ></div>
+        {/* Esquinas decorativas */}
+        <div className={cn("absolute top-2 left-2 w-3 h-3 border-l-2 border-t-2 rounded-tl-lg opacity-60", isOwn ? "border-rose-300" : "border-indigo-300")} />
+        <div className={cn("absolute top-2 right-2 w-3 h-3 border-r-2 border-t-2 rounded-tr-lg opacity-60", isOwn ? "border-rose-300" : "border-indigo-300")} />
+        <div className={cn("absolute bottom-2 left-2 w-3 h-3 border-l-2 border-b-2 rounded-bl-lg opacity-60", isOwn ? "border-rose-300" : "border-indigo-300")} />
+        <div className={cn("absolute bottom-2 right-2 w-3 h-3 border-r-2 border-b-2 rounded-br-lg opacity-60", isOwn ? "border-rose-300" : "border-indigo-300")} />
       </motion.div>
     </div>
   )

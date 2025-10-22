@@ -54,7 +54,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id,partner_id,name,avatar_url')
+        .select('*')                 // ← trae todas las columnas requeridas por Profile
         .eq('id', user!.id)
         .maybeSingle()
       if (error) throw error
