@@ -2,6 +2,12 @@
 import { DiaryEntry, User } from '@/types'
 import { supabase } from './supabase'
 
+
+// Ordena la pareja de forma estable para unicidad (a < b)
+function sortPair(a: string, b: string): { user_a: string; user_b: string } {
+  return a < b ? { user_a: a, user_b: b } : { user_a: b, user_b: a }
+}
+
 export class SupabaseService {
   /* ──────────────── AUTH / PERFILES ──────────────── */
   static async signUp(email: string, password: string, name: string) {
@@ -125,6 +131,93 @@ export class SupabaseService {
       isPrivate: row.is_private
     }
   }
+
+
+      // ===== Couple Media =====
+
+  static async getCoupleMedia(userId: string, otherId: string) {
+    const { user_a, user_b } = sortPair(userId, otherId)
+
+    const { data, error } = await supabase
+      .from('couple_media')
+      .select('*')
+      .eq('user_a', user_a)
+      .eq('user_b', user_b)
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+
+    return (data ?? []).map((row: any) => ({
+      id: row.id,
+      userA: row.user_a,
+      userB: row.user_b,
+      title: row.title,
+      ratingA: row.rating_a,
+      ratingB: row.rating_b,
+      createdBy: row.created_by,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }))
+  }
+
+  static async addCoupleMedia(params: { userId: string; otherId: string; title: string; myRating?: number | null }) {
+    const { user_a, user_b } = sortPair(params.userId, params.otherId)
+    const isA = params.userId === user_a
+
+    const payload: any = {
+      user_a,
+      user_b,
+      title: params.title.trim(),
+      created_by: params.userId,
+      rating_a: isA ? (params.myRating ?? null) : null,
+      rating_b: !isA ? (params.myRating ?? null) : null,
+    }
+
+    const { data, error } = await supabase
+      .from('couple_media')
+      .upsert(payload, {
+        onConflict: 'user_a,user_b,title',
+        ignoreDuplicates: false,
+      })
+      .select('*')
+      .single()
+
+    if (error) throw error
+
+    return {
+      id: data.id,
+      userA: data.user_a,
+      userB: data.user_b,
+      title: data.title,
+      ratingA: data.rating_a,
+      ratingB: data.rating_b,
+      createdBy: data.created_by,
+      createdAt: data.created_at,
+      updatedAt: data.updated_at,
+    }
+  }
+
+  static async rateCoupleMedia(params: { id: string; userId: string; rating: number }) {
+    // Primero identificamos si el usuario es A o B
+    const { data: row, error: errGet } = await supabase
+      .from('couple_media')
+      .select('id, user_a, user_b')
+      .eq('id', params.id)
+      .single()
+
+    if (errGet) throw errGet
+
+    const isA = params.userId === row.user_a
+    const updatePayload: any = isA ? { rating_a: params.rating } : { rating_b: params.rating }
+
+    const { error } = await supabase
+      .from('couple_media')
+      .update(updatePayload)
+      .eq('id', params.id)
+
+    if (error) throw error
+  }
+
 
   
 }

@@ -6,6 +6,10 @@ import { Button } from "@/components/ui/button"
 import { UserAvatar } from "@/components/UserAvatar"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/AuthProvider" // Importar useAuth
+import { useCoupleMedia } from "@/hooks/useCoupleMedia"
+import { Badge } from "@/components/ui/badge"
+import { Card, CardContent } from "@/components/ui/card"
+import { Film, Plus  } from "lucide-react"
 
 import {
   Dialog, DialogContent, DialogTrigger, DialogClose,
@@ -64,6 +68,39 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
 
   const navigate = useNavigate()
 
+  // Determina con quién conformo la pareja para cargar medios compartidos
+  // - Si estoy viendo MI perfil: la "otra persona" es partner?.id
+  // - Si estoy viendo el perfil de la pareja: la "otra persona" es userId
+  const otherId = (isCurrentUser ? partner?.id : userId) || undefined
+
+  // Carga de medios en pareja (solo si ambos ids existen)
+  const { media, loading: loadingMedia, addMedia, rateMedia } = useCoupleMedia(user?.id, otherId)
+
+  // Adapta a la estructura que ya usa tu renderViewField (title, your_rating, partner_rating)
+  const watchedFromCouple = (media ?? []).map(m => {
+    const iAmA = user?.id === m.userA
+    return {
+      title: m.title,
+      your_rating: iAmA ? m.ratingA : m.ratingB,
+      partner_rating: iAmA ? m.ratingB : m.ratingA,
+      _id: m.id, // lo usamos para valorar
+    }
+  })
+
+  // Estado del mini-formulario de alta
+  const [newTitle, setNewTitle] = useState<string>("")
+  const [newRating, setNewRating] = useState<number | "">("")
+
+  async function handleAddMedia() {
+    if (!otherId) return
+    const title = newTitle.trim()
+    if (!title) return
+    await addMedia({ title, myRating: newRating === "" ? null : Number(newRating) })
+    setNewTitle("")
+    setNewRating("")
+  }
+
+
   useEffect(() => {
     // 🚫 No hagas nada si el modal está cerrado
     if (!isOpen) return;
@@ -85,15 +122,15 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
         const { data: mainData, error: mainError } = await supabase
           .from("profiles")
           .select(`
-          id, name, avatar_url, birthday, meet_date, chinese_day,
-          languages, profession, favorite_foods, hobbies,
-          favorite_music, favorite_songs, favorite_movies,
-          love_story, couple_song, special_places, favorite_activities,
-          dream_destinations, future_goals, love_languages, pet_names, relationship_milestones,
-          watched_media
-        `)
+                  id, name, avatar_url, birthday, meet_date, chinese_day,
+                  languages, profession, favorite_foods, hobbies,
+                  favorite_music, favorite_songs, favorite_movies,
+                  love_story, couple_song, special_places, favorite_activities,
+                  dream_destinations, future_goals, love_languages, pet_names, relationship_milestones
+                `)
           .eq("id", userId)
-          .single();
+          .single()
+
 
         if (mainError) {
           console.error("Error fetching main profile:", mainError);
@@ -103,20 +140,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
         mainProfileData = mainData;
       }
 
-      // Solo si es MI perfil y tengo pareja: trae watched_media de la pareja
-      if (viewingOwnProfile && partner?.id) {
-        const { data: partnerData, error: partnerError } = await supabase
-          .from("profiles")
-          .select("watched_media")
-          .eq("id", partner.id)
-          .single();
-
-        if (!partnerError) {
-          partnerProfileData = partnerData;
-        } else {
-          console.warn("Error fetching partner profile for watched media:", partnerError);
-        }
-      }
+   
 
       // Combinar watched_media (misma lógica de antes)
       const combined = new Map<string, { title: string; your_rating: number | null; partner_rating: number | null }>();
@@ -430,6 +454,80 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                   profile.favorite_movies,
                   "from-gray-400 to-pink-500",
                 )}
+
+                {/* ── Gestor de películas/series compartidas ── */}
+                <div className="mt-4 space-y-3">
+                  {/* Formulario para añadir */}
+                  <h1>Películas que hemos visto juntos 💗</h1>
+
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <input
+                      type="text"
+                      value={newTitle}
+                      onChange={(e) => setNewTitle(e.target.value)}
+                      placeholder="Añadir película/serie..."
+                      className="flex-1 px-3 py-2 border rounded-lg border-pink-200 focus:outline-none focus:ring-2 focus:ring-pink-300"
+                    />
+                    <select
+                      value={newRating}
+                      onChange={(e) => setNewRating(e.target.value === "" ? "" : Number(e.target.value))}
+                      className="px-3 py-2 border rounded-lg border-pink-200"
+                    >
+                      <option value="">Sin rating</option>
+                      <option value={1}>1 ⭐</option>
+                      <option value={2}>2 ⭐</option>
+                      <option value={3}>3 ⭐</option>
+                      <option value={4}>4 ⭐</option>
+                      <option value={5}>5 ⭐</option>
+                    </select>
+                    <Button
+                      onClick={handleAddMedia}
+                      disabled={!otherId || !newTitle.trim()}
+                      className="bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl"
+                    >
+                      Añadir
+                    </Button>
+                  </div>
+
+                  {/* Estado de carga de la lista compartida */}
+                  {loadingMedia && (
+                    <div className="text-sm text-pink-700/80">Cargando películas/series de la pareja…</div>
+                  )}
+
+                  {/* Botones de rating por ítem */}
+                  {watchedFromCouple.length > 0 && (
+                    <div className="space-y-2">
+                      {watchedFromCouple.map(item => (
+                        <div
+                          key={item._id}
+                          className="flex items-center justify-between bg-pink-50/50 border border-pink-200 rounded-lg px-3 py-2"
+                        >
+                          <div className="min-w-0">
+                            <p className="font-medium text-gray-800 truncate">{item.title}</p>
+                            <p className="text-xs text-gray-600">
+                              Mi rating: <span className="font-semibold">{item.your_rating ?? "—"}</span> •
+                              &nbsp;Pareja: <span className="font-semibold">{item.partner_rating ?? "—"}</span>
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            {[1, 2, 3, 4, 5].map(n => (
+                              <Button
+                                key={n}
+                                variant="outline"
+                                size="sm"
+                                className="rounded-full px-2 py-1"
+                                onClick={() => rateMedia({ id: item._id!, rating: n })}
+                              >
+                                {n} ⭐
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 {renderViewField(Heart, "Historia de Amor", profile.love_story, "from-red-400 to-pink-500")}
                 {renderViewField(Headphones, "Nuestra Canción", profile.couple_song, "from-blue-400 to-purple-500")}
                 {renderViewField(MapPin, "Lugares Especiales", profile.special_places, "from-green-400 to-teal-500")}
@@ -454,12 +552,17 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                   profile.relationship_milestones,
                   "from-teal-400 to-green-500",
                 )}
-                {renderViewField(
-                  Clapperboard, // Usamos Clapperboard para películas/series
-                  "Películas/Series Vistas Juntos",
-                  profile.watched_media,
-                  "from-blue-400 to-purple-500",
+                {loadingMedia && (
+                  <div className="text-sm text-pink-700/80 mb-2">Cargando películas/series de la pareja…</div>
                 )}
+
+                {/* {renderViewField(
+                  Clapperboard,
+                  "Películas/Series Vistas Juntos",
+                  watchedFromCouple, // 👈 ahora viene de couple_media (compartido)
+                  "from-blue-400 to-purple-500",
+                )} */}
+
               </div>
             </div>
 

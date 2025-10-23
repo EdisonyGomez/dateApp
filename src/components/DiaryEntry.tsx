@@ -12,6 +12,8 @@ import { Calendar, Lock, Unlock, Edit } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 
+import { BookReaderModal } from "@/components/BookReaderModal"
+
 /**
  * Props extendidas para recibir el autor ya resuelto desde el join:
  * Asegúrate que el hook contenedor (useDiaryEntries) haga:
@@ -97,32 +99,43 @@ export const DiaryEntry: React.FC<DiaryEntryProps> = ({ entry, onEdit }) => {
   const validatedMood = entry.mood as MoodKey
 
   // Estado UI (paginación/libro)
-  const [currentPage, setCurrentPage] = useState(0)
-  const [isBookOpen, setIsBookOpen] = useState(false)
-  const [isFlipping, setIsFlipping] = useState(false)
-  const [flipDirection, setFlipDirection] = useState<"next" | "prev">("next")
+  // Estado para el modal de libro
+  const [isBookOpenModal, setIsBookOpenModal] = useState(false)
+
 
   // Derivados
   const pages = useMemo(() => {
-    if (!entry.content) return []
+    const text = entry.content || ""
     const CHARS_PER_PAGE = 400
 
-    const paragraphs = entry.content.split(/\n\s*\n/)
-    const out: string[] = []
-    let cur = ""
+    if (!text.trim()) return [""]
 
-    for (const p of paragraphs) {
-      const test = cur + (cur ? "\n\n" : "") + p
-      if (test.length > CHARS_PER_PAGE && cur) {
-        out.push(cur)
-        cur = p
-      } else {
-        cur = test
+    const result: string[] = []
+    const paragraphs = text.split(/\n\s*\n/)
+
+    for (const raw of paragraphs) {
+      const para = raw.trim()
+      if (!para) continue
+      if (para.length <= CHARS_PER_PAGE) {
+        result.push(para)
+        continue
+      }
+      let start = 0
+      while (start < para.length) {
+        let end = Math.min(start + CHARS_PER_PAGE, para.length)
+        if (end < para.length) {
+          const lastSpace = para.lastIndexOf(" ", end - 1)
+          if (lastSpace > start + Math.floor(CHARS_PER_PAGE * 0.6)) end = lastSpace
+        }
+        const slice = para.slice(start, end).trim()
+        if (slice) result.push(slice)
+        start = end
       }
     }
-    if (cur) out.push(cur)
-    return out.length > 0 ? out : [entry.content]
+    return result.length ? result : [text]
   }, [entry.content])
+
+
 
   const totalPages = pages.length
   const hasMultiplePages = totalPages > 1
@@ -149,19 +162,6 @@ export const DiaryEntry: React.FC<DiaryEntryProps> = ({ entry, onEdit }) => {
     }
   }, [entry.date])
 
-  const handlePageChange = (direction: "next" | "prev") => {
-    if (isFlipping) return
-    setIsFlipping(true)
-    setFlipDirection(direction)
-    setTimeout(() => {
-      if (direction === "next" && currentPage < totalPages - 1) {
-        setCurrentPage((p) => p + 1)
-      } else if (direction === "prev" && currentPage > 0) {
-        setCurrentPage((p) => p - 1)
-      }
-      setTimeout(() => setIsFlipping(false), 300)
-    }, 300)
-  }
 
   return (
     <div className={cn("flex mb-6", alignment)}>
@@ -183,6 +183,18 @@ export const DiaryEntry: React.FC<DiaryEntryProps> = ({ entry, onEdit }) => {
           `,
         }}
       >
+        {/* Modal de lectura tipo libro */}
+        <BookReaderModal
+          open={isBookOpenModal}
+          onOpenChange={setIsBookOpenModal}
+          pages={pages}
+          title={entry.title}
+          author={authorName}
+          dateLabel={formattedDate}
+          theme={isOwn ? "own" : "partner"}
+        />
+
+
         {/* Header de la tarjeta */}
         <div
           className={cn(
@@ -222,116 +234,52 @@ export const DiaryEntry: React.FC<DiaryEntryProps> = ({ entry, onEdit }) => {
           </div>
         </div>
 
-        {/* Contenido / libro */}
+        {/* Contenido (preview corto) */}
         <div className="px-4 pb-2">
-          {!isBookOpen && hasMultiplePages ? (
-            <div
-              className={cn(
-                "text-base leading-7 whitespace-pre-wrap tracking-wide font-serif",
-                isOwn ? "text-rose-800" : "text-indigo-800",
-              )}
-            >
-              {pages[0].slice(0, 200)}
-              {pages[0].length > 200 && "..."}
-            </div>
-          ) : (
-            <div className="min-h-[300px] relative perspective-1000">
-              <div className="relative preserve-3d">
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={currentPage}
-                    initial={
-                      isFlipping
-                        ? {
-                          rotateY: flipDirection === "next" ? -90 : 90,
-                          opacity: 0,
-                        }
-                        : { rotateY: 0, opacity: 1 }
-                    }
-                    animate={{ rotateY: 0, opacity: 1 }}
-                    exit={{
-                      rotateY: flipDirection === "next" ? 90 : -90,
-                      opacity: 0,
-                    }}
-                    transition={{
-                      duration: 0.6,
-                      ease: "easeInOut",
-                      type: "spring",
-                      stiffness: 100,
-                      damping: 15,
-                    }}
-                    className={cn(
-                      "text-base leading-7 whitespace-pre-wrap tracking-wide font-serif p-4 rounded-lg border shadow-inner transform-gpu",
-                      isOwn
-                        ? "bg-gradient-to-b from-rose-25 via-pink-25 to-rose-50 border-rose-200 text-rose-900"
-                        : "bg-gradient-to-b from-indigo-25 via-blue-25 to-indigo-50 border-indigo-200 text-indigo-900",
-                    )}
-                    style={{
-                      minHeight: "280px",
-                      transformStyle: "preserve-3d",
-                      backfaceVisibility: "hidden",
-                      backgroundImage: `
-                        repeating-linear-gradient(
-                          transparent,
-                          transparent 24px,
-                          ${isOwn ? "rgba(244, 63, 94, 0.08)" : "rgba(99, 102, 241, 0.08)"} 24px,
-                          ${isOwn ? "rgba(244, 63, 94, 0.08)" : "rgba(99, 102, 241, 0.08)"} 25px
-                        )
-                      `,
-                    }}
-                  >
-                    {pages[currentPage] || entry.content}
-                  </motion.div>
-                </AnimatePresence>
-              </div>
-
-              {hasMultiplePages && isBookOpen && (
-                <div className="flex items-center justify-between mt-4 px-2">
-                  <button
-                    onClick={() => handlePageChange("prev")}
-                    disabled={currentPage === 0 || isFlipping}
-                    className={cn(
-                      "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-300",
-                      currentPage === 0 || isFlipping
-                        ? isOwn
-                          ? "text-rose-400 cursor-not-allowed"
-                          : "text-indigo-400 cursor-not-allowed"
-                        : isOwn
-                          ? "text-rose-700 hover:text-rose-900 hover:bg-rose-100 hover:shadow-md transform hover:-translate-y-0.5"
-                          : "text-indigo-700 hover:text-indigo-900 hover:bg-indigo-100 hover:shadow-md transform hover:-translate-y-0.5",
-                    )}
-                  >
-                    <span className="text-lg">📖</span>
-                    Página anterior
-                  </button>
-
-                  <div className={cn("flex items-center gap-2 text-sm font-medium", isOwn ? "text-rose-600" : "text-indigo-600")}>
-                    <span className={cn("px-3 py-1 rounded-full border", isOwn ? "bg-rose-100 border-rose-200" : "bg-indigo-100 border-indigo-200")}>
-                      {currentPage + 1} de {totalPages}
-                    </span>
-                  </div>
-
-                  <button
-                    onClick={() => handlePageChange("next")}
-                    disabled={currentPage === totalPages - 1 || isFlipping}
-                    className={cn(
-                      "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-300",
-                      currentPage === totalPages - 1 || isFlipping
-                        ? isOwn
-                          ? "text-rose-400 cursor-not-allowed"
-                          : "text-indigo-400 cursor-not-allowed"
-                        : isOwn
-                          ? "text-rose-700 hover:text-rose-900 hover:bg-rose-100 hover:shadow-md transform hover:-translate-y-0.5"
-                          : "text-indigo-700 hover:text-indigo-900 hover:bg-indigo-100 hover:shadow-md transform hover:-translate-y-0.5",
-                    )}
-                  >
-                    Página siguiente <span className="text-lg">📖</span>
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
+          <div
+            className={cn(
+              "text-base leading-7 whitespace-pre-wrap tracking-wide font-serif",
+              isOwn ? "text-rose-800" : "text-indigo-800",
+            )}
+          >
+            {pages[0].slice(0, 200)}
+            {pages[0].length > 200 && "…"}
+          </div>
         </div>
+
+        {/* Botón para abrir el libro (modal) */}
+        {hasMultiplePages && (
+          <div
+            className={cn(
+              "px-4 pb-3 flex items-center justify-end text-xs",
+              isOwn ? "text-rose-700/80" : "text-indigo-700/80",
+            )}
+          >
+            <button
+              onClick={() => setIsBookOpenModal(true)}
+              className={cn(
+                "font-medium transition-colors duration-200 hover:underline",
+                isOwn ? "text-rose-600 hover:text-rose-800" : "text-indigo-600 hover:text-indigo-800",
+              )}
+              aria-label="Abrir libro"
+            >
+              📖 Abrir libro
+            </button>
+          </div>
+        )}
+
+
+        {/* Toggle abrir/cerrar libro */}
+        {hasMultiplePages && (
+          <div
+            className={cn(
+              "px-4 pb-3 flex items-center justify-end text-xs",
+              isOwn ? "text-rose-700/80" : "text-indigo-700/80",
+            )}
+          >
+            
+          </div>
+        )}
 
         {/* Fotos */}
         {entry.photos && entry.photos.length > 0 && (
