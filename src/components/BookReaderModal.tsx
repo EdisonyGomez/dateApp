@@ -118,9 +118,9 @@ export const BookReaderModal: React.FC<BookReaderModalProps> = ({
                 <div className={cn("relative h-2/3 px-4 md:px-6 pb-6")}>
                     <div
                         className={cn(
-                            "relative mx-auto h-full w-full max-w-4xl",
+                            "relative mx-auto h-full border w-full max-w-4xl ",
                             // 3:2 aprovecha mejor la vertical en laptop
-                            "sm:aspect-[16/10] md:aspect-[3/2]",
+                            "sm:aspect-[16/10] md:aspect-[3/2] aspect-1" , 
                             "rounded-[28px] border ",
                             palette.border,
                             "bg-neutral-50/70 backdrop-blur-sm",
@@ -129,7 +129,7 @@ export const BookReaderModal: React.FC<BookReaderModalProps> = ({
                     >
 
                         {/* Lomo / sombra central */}
-                        <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-gradient-to-b from-neutral-300 via-neutral-200 to-neutral-300 opacity-70" />
+                        <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-gradient-to-b from-neutral-300 via-neutral-200 to-neutral-300 opacity-70 " />
 
                         {/* Hoja izquierda */}
                         <Page
@@ -149,39 +149,16 @@ export const BookReaderModal: React.FC<BookReaderModalProps> = ({
                             key={`sheet-right-${sheetIndex}`}
                         />
 
-                        {/* Controles */}
-                        <div className="absolute inset-0 pointer-events-none">
-                            {/* área clic izquierda/derecha */}
-                            <button
-                                onClick={goPrev}
-                                disabled={!canPrev}
-                                className={cn(
-                                    "pointer-events-auto absolute inset-y-0 left-0 w-1/3",
-                                    "focus:outline-none",
-                                )}
-                                aria-label="Página anterior"
-                                title="Página anterior"
-                            />
-                            <button
-                                onClick={goNext}
-                                disabled={!canNext}
-                                className={cn(
-                                    "pointer-events-auto absolute inset-y-0 right-0 w-1/3",
-                                    "focus:outline-none",
-                                )}
-                                aria-label="Página siguiente"
-                                title="Página siguiente"
-                            />
-                        </div>
+
 
                         {/* Botones visibles */}
-                        <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2">
+                        <div className="absolute -bottom-3 left-1/2  flex items-center gap-2">
                             {/* Botones visibles flotantes */}
                             <button
                                 onClick={goPrev}
                                 disabled={!canPrev}
                                 className={cn(
-                                    "absolute top-1/2 -translate-y-1/2 left-3 md:left-4 z-10",
+                                    "absolute top-1/2 -translate-y-1/2 right-3 z-10",
                                     "rounded-full p-2 md:p-3 bg-white/90 border border-neutral-300 shadow-lg",
                                     "hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed"
                                 )}
@@ -195,7 +172,7 @@ export const BookReaderModal: React.FC<BookReaderModalProps> = ({
                                 onClick={goNext}
                                 disabled={!canNext}
                                 className={cn(
-                                    "absolute top-1/2 -translate-y-1/2 right-3 md:right-4 z-10",
+                                    "absolute top-1/2 -translate-y-1/2  z-10",
                                     "rounded-full p-2 md:p-3 bg-white/90 border border-neutral-300 shadow-lg",
                                     "hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed"
                                 )}
