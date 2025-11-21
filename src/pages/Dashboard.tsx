@@ -19,7 +19,15 @@ import { toast } from "sonner"
 import { Calendar, Heart, BookOpen, CalendarDays } from "lucide-react"
 import { LoveNoteModal } from "@/components/LoveNoteModal"
 import { HeartParticles } from "@/components/HeartParticles"
+import { RomanticBackground } from "@/components/RomanticBackground" // 👈 nuevo import
 
+/**
+ * Dashboard principal:
+ * - Gestiona pestañas (diario, calendario, juegos)
+ * - Filtra/busca entradas
+ * - Maneja modos de lectura (timeline / dueto)
+ * - Integra el fondo romántico y partículas de corazones
+ */
 export const Dashboard: React.FC = () => {
   const { user, partner } = useAuth()
   const { entries, loading, addEntry, updateEntry, deleteEntry, getEntryByDate } = useDiaryEntries()
@@ -30,10 +38,9 @@ export const Dashboard: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState("")
   const [filterMood, setFilterMood] = useState<"all" | string>("all")
 
-  const normalizeDate = (date: string | Date) => new Date(date).toISOString().split("T")[0]
-
   const [readingMode, setReadingMode] = useState<"timeline" | "duet">("timeline")
 
+  const normalizeDate = (date: string | Date) => new Date(date).toISOString().split("T")[0]
 
   const filteredEntries = useMemo(() => {
     let filtered = entries
@@ -54,6 +61,9 @@ export const Dashboard: React.FC = () => {
   const todayEntry = getEntryByDate(today)
   const partnerTodayEntry = partner ? getEntryByDate(today, partner.id) : null
 
+  /**
+   * Guarda una entrada nueva o actualiza una existente.
+   */
   const handleSaveEntry = (data: Omit<DiaryEntryType, "id" | "createdAt" | "updatedAt">) => {
     console.log("Saving entry:", data)
     try {
@@ -71,6 +81,9 @@ export const Dashboard: React.FC = () => {
     }
   }
 
+  /**
+   * Formatea una fecha YYYY-MM-DD a formato largo en español.
+   */
   const formatFullDate = (dateStr: string): string => {
     const days = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"]
     const months = [
@@ -109,19 +122,27 @@ export const Dashboard: React.FC = () => {
     setEditingEntry(null)
   }
 
+  // ───────────────── ESTADO: CARGANDO ─────────────────
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-100 via-white to-rose-100">
-        <Heart className="h-16 w-16 text-rose-500 animate-pulse-slow-fade mx-auto" />
-        <p className="text-pink-800 text-lg ml-4">Cargando tu diario de amor...</p>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-100 via-white to-rose-100 relative overflow-hidden">
+        <RomanticBackground />
+        <HeartParticles />
+        <div className="flex items-center gap-4 relative z-10">
+          <Heart className="h-16 w-16 text-rose-500 animate-pulse-slow-fade mx-auto" />
+          <p className="text-pink-800 text-lg ml-4">Cargando tu diario de amor...</p>
+        </div>
       </div>
     )
   }
 
+  // ───────────────── ESTADO: VINCULAR PAREJA ─────────────────
   if (showPartnerLink) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-pink-100 via-white to-rose-100 p-4 custom-scrollbar">
-        <div className="container mx-auto max-w-4xl bg-white/70 backdrop-blur-sm rounded-3xl shadow-xl p-8 border border-pink-100 animate-fade-in">
+      <div className="min-h-screen bg-gradient-to-br from-pink-100 via-white to-rose-100 p-4 custom-scrollbar relative overflow-hidden">
+        <RomanticBackground />
+        <HeartParticles />
+        <div className="container mx-auto max-w-4xl bg-white/70 backdrop-blur-sm rounded-3xl shadow-xl p-8 border border-pink-100 animate-fade-in relative z-10">
           <div className="flex items-center justify-between mb-6">
             <h1 className="text-3xl font-extrabold text-rose-500">Conecta con tu Pareja</h1>
             <Button
@@ -138,10 +159,13 @@ export const Dashboard: React.FC = () => {
     )
   }
 
+  // ───────────────── ESTADO: FORMULARIO (NUEVO / EDITAR) ─────────────────
   if (showForm) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-pink-100 via-white to-rose-100 p-4 custom-scrollbar">
-        <div className="container mx-auto max-w-4xl bg-white/70 backdrop-blur-sm rounded-3xl shadow-xl p-8 border border-pink-100 animate-fade-in">
+      <div className="min-h-screen bg-gradient-to-br from-pink-100 via-white to-rose-100 p-4 custom-scrollbar relative overflow-hidden">
+        <RomanticBackground />
+        <HeartParticles />
+        <div className="container mx-auto max-w-4xl bg-white/70 backdrop-blur-sm rounded-3xl shadow-xl p-8 border border-pink-100 animate-fade-in relative z-10">
           <Button
             variant="outline"
             onClick={handleCancelForm}
@@ -155,11 +179,15 @@ export const Dashboard: React.FC = () => {
     )
   }
 
+  // ───────────────── DASHBOARD PRINCIPAL ─────────────────
   return (
-    <div className="relative min-h-screen bg-gradient-to-br from-pink-100 via-white to-rose-100 overflow-hidden custom-scrollbar">
+    <div className="relative min-h-screen overflow-hidden custom-scrollbar">
+      {/* Fondo romántico + partículas siempre presentes */}
+      <RomanticBackground />
+      <HeartParticles />
+
       <LoveNoteModal />
       <Header onNewEntry={handleNewEntry} onShowPartnerLink={() => setShowPartnerLink(true)} />
-      <HeartParticles />
 
       <div className="container mx-auto px-4 py-8 max-w-4xl relative z-10">
         <Tabs defaultValue="diary" className="space-y-6">
@@ -188,7 +216,11 @@ export const Dashboard: React.FC = () => {
           </TabsList>
 
           {/* ───────────── DIARY TAB ───────────── */}
-          <TabsContent value="diary" className="space-y-8 animate-fade-in">
+          <TabsContent
+            value="diary"
+            className="space-y-8 animate-fade-in relative bg-transparent"
+          >
+
             {/* Search & Filters */}
             <Card className="p-6 rounded-3xl shadow-xl border border-pink-100 bg-white/80 backdrop-blur-sm">
               <CardContent className="p-0 space-y-4">
@@ -262,11 +294,9 @@ export const Dashboard: React.FC = () => {
                     Dueto
                   </Button>
                 </div>
-
               </CardContent>
             </Card>
 
-            {/* Entries List */}
             {/* Entries List */}
             <div className="space-y-6">
               <h2 className="text-3xl font-extrabold flex items-center text-rose-500">
@@ -298,7 +328,7 @@ export const Dashboard: React.FC = () => {
               ) : (
                 <>
                   {readingMode === "timeline" && (
-                    /* === MODO TIMELINE (EXISTENTE) === */
+                    /* === MODO TIMELINE === */
                     Object.entries(
                       filteredEntries.reduce((groups, entry) => {
                         const date = entry.date
@@ -324,7 +354,7 @@ export const Dashboard: React.FC = () => {
                   )}
 
                   {readingMode === "duet" && (
-                    /* === MODO DUETO (NUEVO) === */
+                    /* === MODO DUETO === */
                     Object.entries(
                       filteredEntries.reduce((groups, entry) => {
                         const date = entry.date
@@ -333,8 +363,8 @@ export const Dashboard: React.FC = () => {
                         return groups
                       }, {} as Record<string, DiaryEntryType[]>)
                     ).map(([date, entries]) => {
-                      const myEntry = entries.find(e => e.userId === user?.id)
-                      const partnerEntry = partner ? entries.find(e => e.userId === partner.id) : null
+                      const myEntry = entries.find((e) => e.userId === user?.id)
+                      const partnerEntry = partner ? entries.find((e) => e.userId === partner.id) : null
 
                       return (
                         <div key={date} className="mb-8">
@@ -385,7 +415,6 @@ export const Dashboard: React.FC = () => {
                 </>
               )}
             </div>
-
           </TabsContent>
 
           {/* ───────────── CALENDAR TAB ───────────── */}
@@ -406,26 +435,24 @@ export const Dashboard: React.FC = () => {
 
       {/* Custom Scrollbar Styles */}
       <style>{`
-        /* Para navegadores basados en WebKit (Chrome, Safari) */
         .custom-scrollbar::-webkit-scrollbar {
           width: 12px;
         }
         .custom-scrollbar::-webkit-scrollbar-track {
-          background: linear-gradient(to bottom, #ffe4e6, #fff0f5); /* from-pink-50 to-pink-100 */
+          background: linear-gradient(to bottom, #ffe4e6, #fff0f5);
           border-radius: 10px;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: linear-gradient(to bottom, #f472b6, #ec4899); /* from-pink-400 to-pink-500 */
+          background: linear-gradient(to bottom, #f472b6, #ec4899);
           border-radius: 10px;
-          border: 3px solid #ffe4e6; /* from-pink-50 */
+          border: 3px solid #ffe4e6;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: linear-gradient(to bottom, #ec4899, #db2777); /* from-pink-500 to-pink-600 */
+          background: linear-gradient(to bottom, #ec4899, #db2777);
         }
-        /* Para Firefox */
         .custom-scrollbar {
           scrollbar-width: thin;
-          scrollbar-color: #f472b6 #ffe4e6; /* thumb color track color */
+          scrollbar-color: #f472b6 #ffe4e6;
         }
         @keyframes pulse-slow-fade {
           0%, 100% {
