@@ -30,8 +30,8 @@ interface DiaryFormProps {
   onSave: (entry: Omit<DiaryEntry, 'id' | 'createdAt' | 'updatedAt'>) => void
   onCancel?: () => void
 }
-
 const moodOptions = [
+  // 🎯 Estados base
   { value: 'happy', label: '😊 Happy' },
   { value: 'sad', label: '😢 Sad' },
   { value: 'excited', label: '🤩 Excited' },
@@ -60,7 +60,49 @@ const moodOptions = [
   { value: 'sleepy', label: '😴 Sleepy' },
   { value: 'sick', label: '🤒 Sick' },
   { value: 'jealous', label: '😒 Jealous' },
-  { value: 'proud', label: '😎 Proud' }
+  { value: 'proud', label: '😎 Proud' },
+
+  // ❤️ Románticos / Tiernos
+  { value: 'apasionado', label: '💘 Apasionado' },
+  { value: 'cariñoso', label: '🤗 Cariñoso' },
+  { value: 'meloso', label: '🍯 Meloso' },
+  { value: 'tierno', label: '🐻 Tierno' },
+  { value: 'coqueto', label: '😉 Coqueto' },
+
+  // ⚡ Energía positiva
+  { value: 'energico', label: '⚡ Enérgico' },
+  { value: 'feliz2', label: '😄 Muy feliz' },
+  { value: 'agradecido2', label: '💝 Agradecido' },
+  { value: 'bendecido', label: '🕊️ Bendecido' },
+  { value: 'optimista', label: '🌈 Optimista' },
+
+  // 🌧️ Emocionales / Melancólicos
+  { value: 'melancolico', label: '🌧️ Melancólico' },
+  { value: 'vulnerable', label: '🥺 Vulnerable' },
+  { value: 'sensible', label: '💧 Sensible' },
+  { value: 'dolido', label: '💔 Dolido' },
+  { value: 'agotado_emocionalmente', label: '🥀 Agotado emocionalmente' },
+
+  // 😡 Intensos / Catarsis
+  { value: 'estresado2', label: '🔥 Muy estresado' },
+  { value: 'agotado', label: '😮‍💨 Agotado' },
+  { value: 'irritado', label: '😤 Irritado' },
+  { value: 'explosivo', label: '💥 Explosivo' },
+  { value: 'sobrepensando', label: '🧠 Sobrepensando' },
+
+  // 🔥 Picantes / Traviesos
+  { value: 'spicy', label: '🌶️ Spicy' },
+  { value: 'travieso', label: '😏 Travieso' },
+  { value: 'seductor', label: '😈 Seductor' },
+  { value: 'fogoso', label: '🔥🔥 Fogoso' },
+  { value: 'atrevido', label: '💋 Atrevido' },
+
+  // 💭 Profundos / Reflexivos
+  { value: 'reflexivo', label: '🧘‍♂️ Reflexivo' },
+  { value: 'introspectivo', label: '🌀 Introspectivo' },
+  { value: 'pensativo', label: '🤔 Pensativo' },
+  { value: 'soñador', label: '💭 Soñador' },
+  { value: 'creativo', label: '🎨 Creativo' }
 ] as const
 
 

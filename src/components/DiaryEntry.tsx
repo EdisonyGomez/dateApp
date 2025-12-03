@@ -57,35 +57,124 @@ const moodEmojis = {
   sick: "🤒",
   jealous: "😒",
   proud: "😎",
-} as const
 
-const moodColors = {
-  happy: "bg-yellow-100 text-yellow-800",
-  sad: "bg-blue-100 text-blue-800",
-  excited: "bg-orange-100 text-orange-800",
-  calm: "bg-green-100 text-green-800",
-  stressed: "bg-red-100 text-red-800",
-  grateful: "bg-purple-100 text-purple-800",
-  neutral: "bg-gray-100 text-gray-800",
-  tired: "bg-gray-200 text-gray-800",
-  inLove: "bg-pink-100 text-pink-800",
-  bored: "bg-gray-300 text-gray-800",
-  surprised: "bg-yellow-200 text-yellow-800",
-  confused: "bg-blue-200 text-blue-800",
-  anxious: "bg-red-200 text-red-800",
-  relaxed: "bg-green-200 text-green-800",
-  nostalgic: "bg-purple-200 text-purple-800",
-  motivated: "bg-orange-200 text-orange-800",
-  inspired: "bg-pink-200 text-pink-800",
-  frustrated: "bg-red-300 text-red-800",
-  relieved: "bg-green-300 text-green-800",
-  worried: "bg-blue-300 text-blue-800",
-  scared: "bg-red-400 text-red-800",
-  hopeful: "bg-purple-300 text-purple-800",
-  angry: "bg-red-500 text-red-800",
-} as const
+  // Nuevos estados de ánimo
+  apasionado: "💘",
+  cariñoso: "🤗",
+  meloso: "🍯",
+  tierno: "🐻",
+  coqueto: "😉",
 
+  energico: "⚡",
+  feliz2: "😄",
+  agradecido2: "💝",
+  bendecido: "🕊️",
+  optimista: "🌈",
+
+  melancolico: "🌧️",
+  vulnerable: "🥺",
+  sensible: "💧",
+  dolido: "💔",
+  agotado_emocionalmente: "🥀",
+
+  estresado2: "🔥",
+  agotado: "😮‍💨",
+  irritado: "😤",
+  explosivo: "💥",
+  sobrepensando: "🧠",
+
+  spicy: "🌶️",
+  travieso: "😏",
+  seductor: "😈",
+  fogoso: "🔥🔥",
+  atrevido: "💋",
+
+  reflexivo: "🧘‍♂️",
+  introspectivo: "🌀",
+  pensativo: "🤔",
+  soñador: "💭",
+  creativo: "🎨",
+} as const;
+
+// Tipo fuerte para las claves, basado en moodEmojis
 type MoodKey = keyof typeof moodEmojis
+
+// Colores asociados a cada estado de ánimo
+const moodColors: Record<MoodKey, string> = {
+  // 🎯 Base
+  happy: 'bg-yellow-100 text-yellow-800',
+  sad: 'bg-blue-100 text-blue-800',
+  excited: 'bg-orange-100 text-orange-800',
+  calm: 'bg-green-100 text-green-800',
+  stressed: 'bg-red-100 text-red-800',
+  grateful: 'bg-purple-100 text-purple-800',
+  neutral: 'bg-gray-100 text-gray-800',
+  cansado: 'bg-gray-200 text-gray-800',
+  enamorado: 'bg-pink-100 text-pink-800',
+  aburrido: 'bg-gray-300 text-gray-800',
+  sorprendido: 'bg-yellow-200 text-yellow-800',
+  confundido: 'bg-blue-200 text-blue-800',
+  ansioso: 'bg-red-200 text-red-800',
+  relajado: 'bg-green-200 text-green-800',
+  nostálgico: 'bg-purple-200 text-purple-800',
+  motivado: 'bg-orange-200 text-orange-800',
+  inspirado: 'bg-pink-200 text-pink-800',
+  frustrado: 'bg-red-300 text-red-800',
+  aliviado: 'bg-green-300 text-green-800',
+  worried: 'bg-blue-300 text-blue-800',
+  scared: 'bg-red-400 text-red-800',
+  hopeful: 'bg-purple-300 text-purple-800',
+  mad: 'bg-red-500 text-red-900',
+  horny: 'bg-rose-200 text-rose-800',
+  meh: 'bg-slate-200 text-slate-700',
+  sleepy: 'bg-indigo-100 text-indigo-800',
+  sick: 'bg-lime-100 text-lime-800',
+  jealous: 'bg-emerald-100 text-emerald-800',
+  proud: 'bg-amber-100 text-amber-800',
+
+  // ❤️ Románticos / Tiernos
+  apasionado: 'bg-rose-100 text-rose-800',
+  cariñoso: 'bg-pink-100 text-pink-800',
+  meloso: 'bg-amber-100 text-amber-800',
+  tierno: 'bg-sky-100 text-sky-800',
+  coqueto: 'bg-rose-100 text-rose-800',
+
+  // ⚡ Energía positiva
+  energico: 'bg-yellow-200 text-yellow-900',
+  feliz2: 'bg-yellow-200 text-yellow-900',
+  agradecido2: 'bg-purple-100 text-purple-800',
+  bendecido: 'bg-teal-100 text-teal-800',
+  optimista: 'bg-sky-100 text-sky-800',
+
+  // 🌧️ Emocionales / Melancólicos
+  melancolico: 'bg-slate-200 text-slate-800',
+  vulnerable: 'bg-rose-50 text-rose-700',
+  sensible: 'bg-cyan-50 text-cyan-700',
+  dolido: 'bg-red-100 text-red-800',
+  agotado_emocionalmente: 'bg-slate-300 text-slate-800',
+
+  // 😡 Intensos / Catarsis
+  estresado2: 'bg-red-200 text-red-800',
+  agotado: 'bg-zinc-200 text-zinc-800',
+  irritado: 'bg-orange-200 text-orange-800',
+  explosivo: 'bg-orange-300 text-orange-900',
+  sobrepensando: 'bg-indigo-100 text-indigo-800',
+
+  // 🔥 Picantes / Traviesos
+  spicy: 'bg-red-200 text-red-900',
+  travieso: 'bg-rose-200 text-rose-900',
+  seductor: 'bg-fuchsia-200 text-fuchsia-900',
+  fogoso: 'bg-red-300 text-red-900',
+  atrevido: 'bg-pink-200 text-pink-900',
+
+  // 💭 Profundos / Reflexivos
+  reflexivo: 'bg-emerald-100 text-emerald-800',
+  introspectivo: 'bg-slate-100 text-slate-800',
+  pensativo: 'bg-blue-100 text-blue-800',
+  soñador: 'bg-indigo-100 text-indigo-800',
+  creativo: 'bg-violet-100 text-violet-800',
+}
+
 
 /**
  * Componente de entrada del diario
