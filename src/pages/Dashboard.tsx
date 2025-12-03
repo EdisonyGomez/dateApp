@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { useAuth } from "@/contexts/AuthProvider"
 import { useDiaryEntries } from "@/hooks/useDiaryEntries"
 import { Header } from "@/components/Header"
@@ -20,6 +20,9 @@ import { Calendar, Heart, BookOpen, CalendarDays } from "lucide-react"
 import { LoveNoteModal } from "@/components/LoveNoteModal"
 import { HeartParticles } from "@/components/HeartParticles"
 import { RomanticBackground } from "@/components/RomanticBackground" // 👈 nuevo import
+
+
+const ENTRIES_PAGE_SIZE = 6
 
 /**
  * Dashboard principal:
@@ -42,6 +45,10 @@ export const Dashboard: React.FC = () => {
 
   const normalizeDate = (date: string | Date) => new Date(date).toISOString().split("T")[0]
 
+  // Número de entradas visibles para evitar sobrecargar la pantalla
+  const [visibleCount, setVisibleCount] = useState(ENTRIES_PAGE_SIZE)
+
+
   const filteredEntries = useMemo(() => {
     let filtered = entries
     if (searchQuery.trim()) {
@@ -56,6 +63,20 @@ export const Dashboard: React.FC = () => {
     }
     return filtered
   }, [entries, searchQuery, selectedDate, filterMood])
+
+  // Entradas que realmente se muestran en pantalla (paginación en memoria)
+  const displayedEntries = useMemo(
+    () => filteredEntries.slice(0, visibleCount),
+    [filteredEntries, visibleCount]
+  )
+
+  const hasMoreEntries = displayedEntries.length < filteredEntries.length
+
+  // Cada vez que cambien filtros/modo de lectura, reseteamos el contador
+  useEffect(() => {
+    setVisibleCount(ENTRIES_PAGE_SIZE)
+  }, [searchQuery, selectedDate, filterMood, readingMode])
+
 
   const today = normalizeDate(new Date())
   const todayEntry = getEntryByDate(today)
@@ -298,7 +319,7 @@ export const Dashboard: React.FC = () => {
             </Card>
 
             {/* Entries List */}
-            <div className="space-y-6">
+            <div className="space-y-6 relative">
               <h2 className="text-3xl font-extrabold flex items-center text-rose-500">
                 <div className="bg-gradient-to-r from-pink-400 to-rose-500 p-3 rounded-full shadow-lg mr-3 transform transition-transform duration-300 hover:rotate-6">
                   <BookOpen className="h-7 w-7 text-white" />
@@ -330,7 +351,7 @@ export const Dashboard: React.FC = () => {
                   {readingMode === "timeline" && (
                     /* === MODO TIMELINE === */
                     Object.entries(
-                      filteredEntries.reduce((groups, entry) => {
+                      displayedEntries.reduce((groups, entry) => {
                         const date = entry.date
                         if (!groups[date]) groups[date] = []
                         groups[date].push(entry)
@@ -356,7 +377,7 @@ export const Dashboard: React.FC = () => {
                   {readingMode === "duet" && (
                     /* === MODO DUETO === */
                     Object.entries(
-                      filteredEntries.reduce((groups, entry) => {
+                      displayedEntries.reduce((groups, entry) => {
                         const date = entry.date
                         if (!groups[date]) groups[date] = []
                         groups[date].push(entry)
@@ -412,7 +433,26 @@ export const Dashboard: React.FC = () => {
                       )
                     })
                   )}
+                  {/* Fade-out + botón de cargar más */}
+                  {hasMoreEntries && (
+                    <div className="mt-4 pt-8 flex flex-col items-center relative">
+                      {/* Capa de degradado para el fade-out visual */}
+                      <div className="pointer-events-none absolute -top-8 left-0 right-0 h-16 bg-gradient-to-t from-rose-50/95 via-rose-50/40 to-transparent" />
+                      
+                      <Button
+                        type="button"
+                        onClick={() => setVisibleCount((prev) => prev + ENTRIES_PAGE_SIZE)}
+                        className="relative z-10 bg-gradient-to-r from-pink-500 to-rose-600 text-white px-6 py-3 rounded-full text-sm font-semibold shadow-lg hover:from-pink-600 hover:to-rose-700 transition-all duration-300 ease-in-out transform hover:-translate-y-0.5 hover:scale-105"
+                      >
+                        Cargar más recuerdos
+                      </Button>
+                      <p className="mt-2 text-xs text-pink-800/70 relative z-10">
+                        Mostrando {displayedEntries.length} de {filteredEntries.length} entradas
+                      </p>
+                    </div>
+                  )}
                 </>
+                
               )}
             </div>
           </TabsContent>
