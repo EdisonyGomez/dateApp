@@ -151,7 +151,7 @@ export const Dashboard: React.FC = () => {
         <HeartParticles />
         <div className="flex items-center gap-4 relative z-10">
           <Heart className="h-16 w-16 text-rose-500 animate-pulse-slow-fade mx-auto" />
-          <p className="text-pink-800 text-lg ml-4">Cargando tu diario de amor...</p>
+          <p className="text-pink-800 text-lg ml-4">Cargando tu diario...</p>
         </div>
       </div>
     )
@@ -313,6 +313,25 @@ export const Dashboard: React.FC = () => {
                     onClick={() => setReadingMode("duet")}
                   >
                     Dueto
+                  </Button>
+                      {/* Botón para recargar la lista de entradas sin recargar la página */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      // Reinicia la paginación y limpia filtros para "recargar" la vista
+                      setVisibleCount(ENTRIES_PAGE_SIZE)
+                      setSearchQuery("")
+                      setSelectedDate("")
+                      setFilterMood("all")
+                      toast.success("Lista de entradas recargada")
+                      // opcional: hacer scroll al inicio de la lista
+                      const container = document.querySelector(".container")
+                      if (container) container.scrollIntoView({ behavior: "smooth", block: "start" })
+                    }}
+                    className="rounded-xl ml-2 px-4 py-2 shadow-md border-pink-200 text-pink-700 hover:bg-pink-50 transition-all duration-200"
+                  >
+                    Recargar entradas
                   </Button>
                 </div>
               </CardContent>
