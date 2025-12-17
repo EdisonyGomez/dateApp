@@ -115,7 +115,7 @@ export const BookReaderModal: React.FC<BookReaderModalProps> = ({
                 </div>
 
                 {/* Zona del “libro” */}
-                <div className={cn("relative lg:h-2/3 px-1 h-3/4 lg:w-full md:w-full w-[95%] ")}>
+                <div className={cn("relative lg:h-2/3 px-1 h-3/4 lg:w-full md:w-full w-[90%] ")}>
                     <div
                         className={cn(
                             "relative lg:mx-auto md:mx-auto mx-2 md:h-full lg:h-full  border md:w-11/12 lg:w-11/12 w-[88%] h-[125%]  ",
