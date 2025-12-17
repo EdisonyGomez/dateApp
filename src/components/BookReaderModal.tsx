@@ -78,7 +78,7 @@ export const BookReaderModal: React.FC<BookReaderModalProps> = ({
             <DialogContent
                 className={cn(
                     // más ancho y alto en laptop y min-height para que no tape controles
-                    "max-w-6xl w-[95vw] h-[80vh] min-h-[540px] p-0 overflow-hidden rounded-3xl border-0",
+                    "max-w-6xl w-[95vw] h-[90vh] min-h-[540px] p-0 overflow-hidden rounded-3xl border-0",
                     "bg-gradient-to-br from-white via-neutral-50 to-neutral-100",
                     "outline-none"
                 )}
@@ -91,7 +91,7 @@ export const BookReaderModal: React.FC<BookReaderModalProps> = ({
                 </DialogHeader>
 
                 {/* Header visible del modal */}
-                <div className="flex items-center justify-between px-6 pt-5 pb-3">
+                <div className="flex flex-row items-center  flex-wrap justify-stretch px-6 md:pt-2 lg:pt-2 lg:mt-2 -mt-7 pb-3">
                     <div className="flex items-center gap-3">
                         <div className={cn("p-2 rounded-xl bg-gradient-to-br", palette.edge)}>
                             <BookOpen className="h-5 w-5 text-white" />
@@ -115,12 +115,13 @@ export const BookReaderModal: React.FC<BookReaderModalProps> = ({
                 </div>
 
                 {/* Zona del “libro” */}
-                <div className={cn("relative h-2/3 px-4 md:px-6 pb-6")}>
+                <div className={cn("relative lg:h-2/3 px-1 h-3/4 lg:w-full md:w-full w-[95%] ")}>
                     <div
                         className={cn(
-                            "relative mx-auto h-full border w-full max-w-4xl ",
+                            "relative lg:mx-auto md:mx-auto mx-2 md:h-full lg:h-full  border md:w-11/12 lg:w-11/12 w-[88%] h-[125%]  ",
+                            " -mt-10 lg:-mt-4 ",
                             // 3:2 aprovecha mejor la vertical en laptop
-                            "sm:aspect-[16/10] md:aspect-[3/2] aspect-1" , 
+                            "sm:aspect-[16/10] md:aspect-h-16 aspect-1" , 
                             "rounded-[28px] border ",
                             palette.border,
                             "bg-neutral-50/70 backdrop-blur-sm",

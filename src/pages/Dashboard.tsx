@@ -48,6 +48,7 @@ export const Dashboard: React.FC = () => {
   // Número de entradas visibles para evitar sobrecargar la pantalla
   const [visibleCount, setVisibleCount] = useState(ENTRIES_PAGE_SIZE)
 
+const { refreshEntries, refreshing } = useDiaryEntries()
 
   const filteredEntries = useMemo(() => {
     let filtered = entries
@@ -314,22 +315,17 @@ export const Dashboard: React.FC = () => {
                   >
                     Dueto
                   </Button>
-                      {/* Botón para recargar la lista de entradas sin recargar la página */}
+                  {/* Botón para recargar la lista de entradas sin recargar la página */}
                   <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      // Reinicia la paginación y limpia filtros para "recargar" la vista
+                    disabled={refreshing}
+                    onClick={async () => {
                       setVisibleCount(ENTRIES_PAGE_SIZE)
                       setSearchQuery("")
                       setSelectedDate("")
                       setFilterMood("all")
-                      toast.success("Lista de entradas recargada")
-                      // opcional: hacer scroll al inicio de la lista
-                      const container = document.querySelector(".container")
-                      if (container) container.scrollIntoView({ behavior: "smooth", block: "start" })
+                      await refreshEntries()
+                      toast.success("Entradas actualizadas ✅")
                     }}
-                    className="rounded-xl ml-2 px-4 py-2 shadow-md border-pink-200 text-pink-700 hover:bg-pink-50 transition-all duration-200"
                   >
                     Recargar entradas
                   </Button>
@@ -457,7 +453,7 @@ export const Dashboard: React.FC = () => {
                     <div className="mt-4 pt-8 flex flex-col items-center relative">
                       {/* Capa de degradado para el fade-out visual */}
                       <div className="pointer-events-none absolute -top-8 left-0 right-0 h-16 bg-gradient-to-t from-rose-50/95 via-rose-50/40 to-transparent" />
-                      
+
                       <Button
                         type="button"
                         onClick={() => setVisibleCount((prev) => prev + ENTRIES_PAGE_SIZE)}
@@ -471,7 +467,7 @@ export const Dashboard: React.FC = () => {
                     </div>
                   )}
                 </>
-                
+
               )}
             </div>
           </TabsContent>
