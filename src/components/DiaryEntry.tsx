@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 
 import { BookReaderModal } from "@/components/BookReaderModal"
+import { HandwritingBookModal } from "./HandwritingBookModal"
 
 /**
  * Props extendidas para recibir el autor ya resuelto desde el join:
@@ -251,6 +252,10 @@ export const DiaryEntry: React.FC<DiaryEntryProps> = ({ entry, onEdit }) => {
     }
   }, [entry.date])
 
+  const [openBook, setOpenBook] = useState(false)
+
+  const [isHandwritingBookOpen, setIsHandwritingBookOpen] = useState(false)
+  const [activeHandwritingImage, setActiveHandwritingImage] = useState<string | null>(null)
 
   return (
     <div className={cn("flex mb-6", alignment)}>
@@ -282,6 +287,17 @@ export const DiaryEntry: React.FC<DiaryEntryProps> = ({ entry, onEdit }) => {
           dateLabel={formattedDate}
           theme={isOwn ? "own" : "partner"}
         />
+
+          {activeHandwritingImage && (
+          <HandwritingBookModal
+            image={activeHandwritingImage}
+            isOpen={isHandwritingBookOpen}
+            onClose={() => {
+              setIsHandwritingBookOpen(false)
+              setActiveHandwritingImage(null)
+            }}
+          />
+        )}
 
 
         {/* Header de la tarjeta */}
@@ -366,32 +382,50 @@ export const DiaryEntry: React.FC<DiaryEntryProps> = ({ entry, onEdit }) => {
               isOwn ? "text-rose-700/80" : "text-indigo-700/80",
             )}
           >
-            
+
           </div>
         )}
 
         {/* Fotos */}
         {entry.photos && entry.photos.length > 0 && (
-          <div className="mx-4 mb-3 grid grid-cols-2 gap-2">
+          <div className="mx-4 mb-3 space-y-4">
             {entry.photos.map((photo, idx) => (
-              <div
-                key={idx}
-                className={cn(
-                  "relative rounded-lg overflow-hidden border-2 shadow-md",
-                  isOwn ? "border-rose-200" : "border-indigo-200",
-                )}
-              >
-                <img
-                  src={photo || "/placeholder.svg"}
-                  alt={`Imagen de la entrada ${idx + 1}`}
-                  className="object-cover aspect-square w-full h-full"
-                  loading="lazy"
-                />
-                <div className={cn("absolute inset-0 border-4 pointer-events-none", isOwn ? "border-rose-100/50" : "border-indigo-100/50")} />
+              <div key={idx} className="flex justify-center">
+                {/* PREVIEW tipo página */}
+                <div
+                  onClick={() => {
+                    setActiveHandwritingImage(photo)
+                    setIsHandwritingBookOpen(true)
+                  }}
+                  className="cursor-pointer max-w-[360px]"
+                >
+                  <div
+                    className={cn(
+                      "bg-white rounded-xl shadow-md border overflow-hidden aspect-[3/4] hover:shadow-lg transition",
+                      isOwn ? "border-rose-200" : "border-indigo-200",
+                    )}
+                  >
+                    <img
+                      src={photo}
+                      alt="Handwritten diary preview"
+                      className="w-full h-full object-cover object-top"
+                    />
+                  </div>
+
+                  <p
+                    className={cn(
+                      "text-xs text-center mt-2 font-medium",
+                      isOwn ? "text-rose-600" : "text-indigo-600",
+                    )}
+                  >
+                    📖 Abrir libro
+                  </p>
+                </div>
               </div>
             ))}
           </div>
         )}
+
 
         {/* Privacidad y editar */}
         <div className={cn("mx-4 mb-3 flex items-center text-xs", isOwn ? "justify-end" : "justify-start")}>

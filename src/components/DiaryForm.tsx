@@ -24,6 +24,7 @@ import { PhotoCapture } from '@/components/PhotoCapture'
 import { Calendar, Camera, Heart } from 'lucide-react'
 import { toast } from 'sonner'
 import { SupabaseService } from '@/lib/SupabaseService'
+import { HandwritingPad } from './HandwritingPad'
 
 interface DiaryFormProps {
   entry?: DiaryEntry
@@ -106,6 +107,7 @@ const moodOptions = [
 ] as const
 
 
+
 // 1) Añade este helper arriba del componente:
 const getLocalDateISO = () => {
   const now = new Date()
@@ -116,6 +118,11 @@ const getLocalDateISO = () => {
 
 export const DiaryForm: React.FC<DiaryFormProps> = ({ entry, onSave, onCancel }) => {
   const { user } = useAuth()
+
+  const [inputMode, setInputMode] = useState<'text' | 'hand'>('text')
+  const [handwritingImage, setHandwritingImage] = useState<string>('')
+
+
   const [formData, setFormData] = useState({
     title: '',
     content: '',
@@ -141,6 +148,12 @@ export const DiaryForm: React.FC<DiaryFormProps> = ({ entry, onSave, onCancel })
     }
   }, [entry])
 
+  /* ───────── validar contenido ───────── */
+  const hasValidContent =
+    inputMode === 'text'
+      ? formData.content.trim().length > 0
+      : handwritingImage.length > 0
+
   /* ───────── envío ───────── */
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -148,19 +161,36 @@ export const DiaryForm: React.FC<DiaryFormProps> = ({ entry, onSave, onCancel })
       toast.error('You must be logged in to save entries')
       return
     }
-    if (!formData.title.trim() || !formData.content.trim()) {
-      toast.error('Please fill in both title and content')
+    if (!formData.title.trim()) {
+      toast.error('Please fill in the title')
       return
     }
+
+    if (!hasValidContent) {
+      toast.error(
+        inputMode === 'text'
+          ? 'Please write some content'
+          : 'Please write something with the pen'
+      )
+      return
+    }
+
     onSave({
       userId: user.id,
       title: formData.title.trim(),
-      content: formData.content.trim(),
+      content:
+        inputMode === 'text'
+          ? formData.content.trim()
+          : '[HANDWRITING]',
       mood: formData.mood,
       isPrivate: formData.isPrivate,
       date: formData.date,
-      photos: formData.photos
+      photos:
+        inputMode === 'hand' && handwritingImage
+          ? [...formData.photos, handwritingImage]
+          : formData.photos
     })
+
 
     if (!entry) {
       setFormData({
@@ -210,6 +240,7 @@ export const DiaryForm: React.FC<DiaryFormProps> = ({ entry, onSave, onCancel })
 
   /* ────────── render ────────── */
   return (
+
     <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
         <CardTitle className="flex items-center">
@@ -217,6 +248,23 @@ export const DiaryForm: React.FC<DiaryFormProps> = ({ entry, onSave, onCancel })
           {entry ? 'Edit Entry' : 'New Diary Entry'}
         </CardTitle>
       </CardHeader>
+
+      <div className="flex gap-2">
+        <Button
+          type="button"
+          variant={inputMode === 'text' ? 'default' : 'outline'}
+          onClick={() => setInputMode('text')}
+        >
+          ⌨️ Texto
+        </Button>
+        <Button
+          type="button"
+          variant={inputMode === 'hand' ? 'default' : 'outline'}
+          onClick={() => setInputMode('hand')}
+        >
+          ✍️ Escritura
+        </Button>
+      </div>
 
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -268,17 +316,27 @@ export const DiaryForm: React.FC<DiaryFormProps> = ({ entry, onSave, onCancel })
 
           {/* contenido */}
           <div className="space-y-2">
-            <Label htmlFor="content">Content</Label>
-            <Textarea
-              id="content"
-              placeholder="Tell me about your day..."
-              value={formData.content}
-              onChange={e => setFormData({ ...formData, content: e.target.value })}
-              rows={8}
-              className="resize-none"
-              required
-            />
+            <Label>Content</Label>
+
+            {inputMode === 'text' ? (
+              <Textarea
+                value={formData.content}
+                onChange={e => setFormData({ ...formData, content: e.target.value })}
+                rows={8}
+                required
+              />
+            ) : (
+              <>
+                <HandwritingPad onChange={setHandwritingImage} />
+                {handwritingImage && (
+                  <p className="text-xs text-muted-foreground">
+                    Escritura manual capturada ✔
+                  </p>
+                )}
+              </>
+            )}
           </div>
+
 
           {/* fotos */}
           <div className="space-y-4">

@@ -113,3 +113,11 @@
     @apply bg-background text-foreground;
   }
 }
+.handwriting-canvas {
+  background-image: linear-gradient(
+    to bottom,
+    transparent 95%,
+    rgba(0, 0, 0, 0.05) 96%
+  );
+  background-size: 100% 32px;
+}
