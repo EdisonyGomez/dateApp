@@ -56,19 +56,11 @@ const moodOptions = [
   { value: 'scared', label: '😨 Scared' },
   { value: 'hopeful', label: '🌟 Hopeful' },
   { value: 'mad', label: '😠 Mad' },
-  { value: 'horny', label: '🔥 Horny' },
   { value: 'meh', label: '😑 Meh' },
   { value: 'sleepy', label: '😴 Sleepy' },
   { value: 'sick', label: '🤒 Sick' },
   { value: 'jealous', label: '😒 Jealous' },
   { value: 'proud', label: '😎 Proud' },
-
-  // ❤️ Románticos / Tiernos
-  { value: 'apasionado', label: '💘 Apasionado' },
-  { value: 'cariñoso', label: '🤗 Cariñoso' },
-  { value: 'meloso', label: '🍯 Meloso' },
-  { value: 'tierno', label: '🐻 Tierno' },
-  { value: 'coqueto', label: '😉 Coqueto' },
 
   // ⚡ Energía positiva
   { value: 'energico', label: '⚡ Enérgico' },
@@ -91,12 +83,6 @@ const moodOptions = [
   { value: 'explosivo', label: '💥 Explosivo' },
   { value: 'sobrepensando', label: '🧠 Sobrepensando' },
 
-  // 🔥 Picantes / Traviesos
-  { value: 'spicy', label: '🌶️ Spicy' },
-  { value: 'travieso', label: '😏 Travieso' },
-  { value: 'seductor', label: '😈 Seductor' },
-  { value: 'fogoso', label: '🔥🔥 Fogoso' },
-  { value: 'atrevido', label: '💋 Atrevido' },
 
   // 💭 Profundos / Reflexivos
   { value: 'reflexivo', label: '🧘‍♂️ Reflexivo' },
