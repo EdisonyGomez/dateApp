@@ -14,11 +14,11 @@ export const HandwritingPreview: React.FC<HandwritingPreviewProps> = ({
       onClick={onOpen}
       className="cursor-pointer mx-auto max-w-[360px]"
     >
-      <div className="bg-white border rounded-xl shadow-md overflow-hidden aspect-[3/4] hover:shadow-lg transition">
+      <div className="bg-white border rounded-xl shadow-md overflow-hidden aspect-[10/13] hover:shadow-lg transition">
         <img
           src={image}
           alt="Handwritten diary"
-          className="w-full h-full object-cover object-top"
+          className="w-full h-full object-contain"
         />
       </div>
       <p className="text-xs text-center mt-2 text-muted-foreground">

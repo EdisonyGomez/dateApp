@@ -369,14 +369,14 @@ export const DiaryEntry: React.FC<DiaryEntryProps> = ({ entry, onEdit }) => {
                 >
                   <div
                     className={cn(
-                      "bg-white rounded-xl shadow-md border overflow-hidden aspect-[3/4] hover:shadow-lg transition",
+                      "bg-white rounded-xl shadow-md border overflow-hidden aspect-[10/13] hover:shadow-lg transition",
                       isOwn ? "border-rose-200" : "border-indigo-200",
                     )}
                   >
                     <img
                       src={photo}
                       alt="Handwritten diary preview"
-                      className="w-full h-full object-cover object-top"
+                      className="w-full h-full object-contain"
                     />
                   </div>
 

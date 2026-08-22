@@ -1,7 +1,7 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { ChevronLeft, ChevronRight, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 interface HandwritingBookModalProps {
   image: string
@@ -9,7 +9,7 @@ interface HandwritingBookModalProps {
   onClose: () => void
 }
 
-const PAGE_HEIGHT_PERCENT = 50 // 2 páginas visibles
+const PAGE_ASPECT_RATIO = 1.3
 
 export const HandwritingBookModal: React.FC<HandwritingBookModalProps> = ({
   image,
@@ -17,13 +17,26 @@ export const HandwritingBookModal: React.FC<HandwritingBookModalProps> = ({
   onClose
 }) => {
   const [page, setPage] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
 
-  const next = () => setPage(p => p + 1)
+  useEffect(() => {
+    if (!isOpen) return
+
+    setPage(0)
+    const source = new Image()
+    source.onload = () => {
+      const estimatedPages = source.naturalHeight / source.naturalWidth / PAGE_ASPECT_RATIO
+      setTotalPages(estimatedPages > 1.5 ? Math.max(1, Math.round(estimatedPages)) : 1)
+    }
+    source.src = image
+  }, [image, isOpen])
+
+  const next = () => setPage(p => Math.min(totalPages - 1, p + 1))
   const prev = () => setPage(p => Math.max(0, p - 1))
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl p-0 bg-transparent border-none">
+      <DialogContent className="w-[95vw] max-w-2xl p-0 bg-transparent border-none">
         <div className="relative bg-white rounded-2xl shadow-2xl p-6">
 
           {/* cerrar */}
@@ -35,25 +48,14 @@ export const HandwritingBookModal: React.FC<HandwritingBookModalProps> = ({
           >
           </Button>
 
-          {/* libro */}
-          <div className="grid grid-cols-2 gap-6">
-            {[0, 1].map(i => {
-              const offset = (page * 2 + i) * PAGE_HEIGHT_PERCENT
-              return (
-                <div
-                  key={i}
-                  className="aspect-[3/4] border rounded-xl overflow-hidden bg-white shadow-inner"
-                >
-                  <img
-                    src={image}
-                    className="w-full h-full object-cover object-top"
-                    style={{
-                      transform: `translateY(-${offset}%)`
-                    }}
-                  />
-                </div>
-              )
-            })}
+          <div className="mx-auto w-full max-w-[520px]">
+            <div className="relative aspect-[10/13] overflow-hidden rounded-xl border bg-white shadow-inner">
+              <img
+                src={image}
+                className={totalPages > 1 ? "absolute inset-x-0 top-0 w-full max-w-none" : "h-full w-full object-contain"}
+                style={totalPages > 1 ? { top: `${-page * 100}%` } : undefined}
+              />
+            </div>
           </div>
 
           {/* navegación */}
@@ -67,7 +69,11 @@ export const HandwritingBookModal: React.FC<HandwritingBookModalProps> = ({
               Prev
             </Button>
 
-            <Button variant="outline" onClick={next}>
+            <Button
+              variant="outline"
+              onClick={next}
+              disabled={page >= totalPages - 1}
+            >
               Next
               <ChevronRight className="ml-2" />
             </Button>
