@@ -7,7 +7,7 @@
  *  Realtime se engancha acá sin tocar la UI.
  */
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/AuthProvider"
 import { toast } from "sonner"
@@ -103,7 +103,12 @@ const normalize = (row: PlanRow): Plan => ({
   created_at: row.created_at,
 })
 
-export function useSharedPlans() {
+export interface UseSharedPlansOptions {
+  /** se llama cuando la PAREJA (no vos) inserta un plan vía Realtime */
+  onPartnerInsert?: (plan: Plan) => void
+}
+
+export function useSharedPlans({ onPartnerInsert }: UseSharedPlansOptions = {}) {
   const { user } = useAuth()
   const [plans, setPlans] = useState<Plan[]>([])
   const [loading, setLoading] = useState(false)
@@ -123,6 +128,30 @@ export function useSharedPlans() {
   useEffect(() => {
     fetchPlans()
   }, [fetchPlans])
+
+  // callback en ref → el efecto Realtime no se re-suscribe en cada render
+  const onPartnerInsertRef = useRef(onPartnerInsert)
+  onPartnerInsertRef.current = onPartnerInsert
+
+  useEffect(() => {
+    if (!user) return
+    const channel = supabase
+      .channel("shared_plans_realtime")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "shared_plans" },
+        (payload) => {
+          fetchPlans()
+          const row = payload.new as PlanRow
+          if (row.created_by !== user.id) onPartnerInsertRef.current?.(normalize(row))
+        },
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [user, fetchPlans])
 
   const addPlan = useCallback(
     async (input: NewPlanInput): Promise<boolean> => {
@@ -162,6 +191,39 @@ export function useSharedPlans() {
     [user, fetchPlans],
   )
 
+  const updatePlan = useCallback(
+    async (id: string, input: NewPlanInput): Promise<boolean> => {
+      const { error } = await supabase
+        .from("shared_plans")
+        .update({
+          title: input.title,
+          description: input.description,
+          date: input.date,
+          end_date: input.end_date,
+          time: input.time,
+          location: input.location,
+          is_task: input.is_task,
+          reminder_minutes: input.reminder_minutes,
+          rrule: input.rrule,
+          all_day: input.all_day,
+          end_time: input.end_time,
+          color: input.color,
+          plan_type: input.plan_type,
+        })
+        .eq("id", id)
+
+      if (error) {
+        toast.error("Failed to save changes")
+        console.error("Error updating plan:", error)
+        return false
+      }
+      toast.success("Changes saved!")
+      await fetchPlans()
+      return true
+    },
+    [fetchPlans],
+  )
+
   const removePlan = useCallback(
     async (id: string) => {
       const { error } = await supabase.from("shared_plans").delete().eq("id", id)
@@ -193,5 +255,5 @@ export function useSharedPlans() {
     [],
   )
 
-  return { plans, loading, addPlan, removePlan, toggleComplete, refetch: fetchPlans }
+  return { plans, loading, addPlan, updatePlan, removePlan, toggleComplete, refetch: fetchPlans }
 }

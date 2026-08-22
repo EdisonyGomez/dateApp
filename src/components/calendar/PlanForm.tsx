@@ -27,13 +27,17 @@ import {
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { todayKey, toDateKey } from "@/lib/date"
-import { configToRRule, defaultRecurrence } from "@/lib/calendar/recurrence"
+import { configToRRule, defaultRecurrence, rruleToConfig } from "@/lib/calendar/recurrence"
 import { RecurrenceField } from "./RecurrenceField"
-import type { NewPlanInput } from "@/hooks/useSharedPlans"
+import type { NewPlanInput, Plan } from "@/hooks/useSharedPlans"
 
 interface PlanFormProps {
   onSubmit: (input: NewPlanInput) => Promise<boolean>
   onCancel: () => void
+  /** si viene, el formulario está en modo edición */
+  initial?: Plan | null
+  /** valores por defecto al crear (p. ej. al tocar un slot de hora) */
+  prefill?: { date?: string; time?: string } | null
 }
 
 const REMINDER_OPTIONS = [
@@ -93,23 +97,43 @@ function Segmented<T extends string>({
   )
 }
 
-export const PlanForm: React.FC<PlanFormProps> = ({ onSubmit, onCancel }) => {
-  const [form, setForm] = useState({
-    title: "",
-    description: "",
-    date: todayKey(),
-    end_date: "",
-    time: "",
-    end_time: "",
-    location: "",
-    is_task: false,
-    all_day: false,
-    reminder: "none",
-    color: EVENT_COLORS[0].value,
-    plan_type: "individual" as "individual" | "together",
-  })
-  const [recur, setRecur] = useState(defaultRecurrence())
+export const PlanForm: React.FC<PlanFormProps> = ({ onSubmit, onCancel, initial, prefill }) => {
+  const [form, setForm] = useState(() =>
+    initial
+      ? {
+          title: initial.title,
+          description: initial.description ?? "",
+          date: toDateKey(initial.date) || todayKey(),
+          end_date: initial.end_date ? toDateKey(initial.end_date) : "",
+          time: initial.time ?? "",
+          end_time: initial.end_time ?? "",
+          location: initial.location ?? "",
+          is_task: initial.is_task,
+          all_day: initial.all_day,
+          reminder: initial.reminder_minutes === null ? "none" : String(initial.reminder_minutes),
+          color: initial.color || EVENT_COLORS[0].value,
+          plan_type: initial.plan_type,
+        }
+      : {
+          title: "",
+          description: "",
+          date: prefill?.date || todayKey(),
+          end_date: "",
+          time: prefill?.time || "",
+          end_time: "",
+          location: "",
+          is_task: false,
+          all_day: false,
+          reminder: "none",
+          color: EVENT_COLORS[0].value,
+          plan_type: "individual" as "individual" | "together",
+        },
+  )
+  const [recur, setRecur] = useState(() =>
+    initial ? rruleToConfig(initial.rrule) : defaultRecurrence(),
+  )
   const [saving, setSaving] = useState(false)
+  const isEditing = !!initial
 
   const set = (patch: Partial<typeof form>) => setForm((p) => ({ ...p, ...patch }))
   const repeating = recur.preset !== "none"
@@ -157,7 +181,13 @@ export const PlanForm: React.FC<PlanFormProps> = ({ onSubmit, onCancel }) => {
       <div className="flex items-center justify-between">
         <h3 className="flex items-center gap-2 text-2xl font-bold text-gray-800">
           <CalendarHeart className="h-7 w-7 text-rose-500" />
-          {form.is_task ? "New task" : "New plan"}
+          {isEditing
+            ? form.is_task
+              ? "Edit task"
+              : "Edit plan"
+            : form.is_task
+              ? "New task"
+              : "New plan"}
         </h3>
         <Button
           variant="ghost"
@@ -332,7 +362,7 @@ export const PlanForm: React.FC<PlanFormProps> = ({ onSubmit, onCancel }) => {
         className="w-full rounded-2xl bg-gradient-to-r from-rose-500 to-pink-500 py-6 text-base font-semibold shadow-lg transition-all hover:from-rose-600 hover:to-pink-600 hover:shadow-xl active:scale-[0.99]"
       >
         <Save className="mr-2 h-5 w-5" />
-        {saving ? "Saving…" : form.is_task ? "Save task" : "Save plan"}
+        {saving ? "Saving…" : isEditing ? "Save changes" : form.is_task ? "Save task" : "Save plan"}
       </Button>
     </motion.div>
   )

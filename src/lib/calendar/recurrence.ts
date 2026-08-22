@@ -122,6 +122,53 @@ export const configToRRule = (
   return new RRule(opts).toString()
 }
 
+/* ───────── parse: RRULE string → config (para editar) ───────── */
+
+/** rrule weekday (0=MO..6=SU) → JS getDay (0=Dom..6=Sáb). */
+const rruleToJsDay = (n: number): number => (n === 6 ? 0 : n + 1)
+
+export const rruleToConfig = (rrule: string | null): RecurrenceConfig => {
+  const def = defaultRecurrence()
+  if (!rrule) return def
+  try {
+    const o = rrulestr(rrule).options
+    const interval = o.interval || 1
+    const bw: number[] = Array.isArray(o.byweekday) ? o.byweekday : []
+    const weekdays = bw.map(rruleToJsDay).sort((a, b) => a - b)
+
+    const end: RecurrenceConfig["end"] = o.until
+      ? { mode: "onDate", date: keyFromUTC(o.until), count: 10 }
+      : o.count
+        ? { mode: "after", date: "", count: o.count }
+        : { mode: "never", date: "", count: 10 }
+
+    const simple = !o.until && !o.count && interval === 1
+    const unit: RecurrenceUnit =
+      o.freq === RRule.DAILY
+        ? "day"
+        : o.freq === RRule.WEEKLY
+          ? "week"
+          : o.freq === RRule.MONTHLY
+            ? "month"
+            : "year"
+
+    if (simple) {
+      if (o.freq === RRule.DAILY) return { ...def, preset: "daily" }
+      if (o.freq === RRule.MONTHLY) return { ...def, preset: "monthly" }
+      if (o.freq === RRule.YEARLY) return { ...def, preset: "yearly" }
+      if (o.freq === RRule.WEEKLY) {
+        const isWeekdays = weekdays.length === 5 && [1, 2, 3, 4, 5].every((d) => weekdays.includes(d))
+        if (isWeekdays) return { ...def, preset: "weekdays" }
+        if (weekdays.length <= 1) return { ...def, preset: "weekly" }
+      }
+    }
+    return { preset: "custom", interval, unit, weekdays, end }
+  } catch (e) {
+    console.error("No se pudo parsear el RRULE:", rrule, e)
+    return def
+  }
+}
+
 /* ───────── ocurrencias ───────── */
 
 export interface Occurrence {

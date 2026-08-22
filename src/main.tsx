@@ -11,6 +11,13 @@ const queryClient = new QueryClient({
   }
 })
 
+// PWA: registra el Service Worker (habilita Web Push y "Add to Home Screen" en iOS)
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => undefined)
+  })
+}
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     {/* ← Aquí envolvemos TODO, incluyendo AuthProvider dentro de App */}

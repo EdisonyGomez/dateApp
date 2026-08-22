@@ -1,6 +1,6 @@
 "use client"
 import type React from "react"
-import { useMemo, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -12,7 +12,6 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog"
 import { useAuth } from "@/contexts/AuthProvider"
-import { toast } from "sonner"
 import {
   Calendar,
   Plus,
@@ -28,15 +27,29 @@ import {
   Users,
   User,
   Bell,
+  BellRing,
   ListTodo,
   CalendarRange,
   Repeat,
+  Pencil,
 } from "lucide-react"
-import { useSharedPlans } from "@/hooks/useSharedPlans"
-import { toDateKey, todayKey, formatKey } from "@/lib/date"
+import { useSharedPlans, type Plan } from "@/hooks/useSharedPlans"
+import { useNotifications } from "@/hooks/useNotifications"
+import { useReminderScheduler } from "@/hooks/useReminderScheduler"
+import { toDateKey, todayKey, formatKey, addDays, keyFromDate } from "@/lib/date"
 import { occurrencesByDay, upcomingOccurrences } from "@/lib/calendar/recurrence"
 import { holidaysByDateKey, type Holiday } from "@/lib/calendar/holidays"
 import { PlanForm } from "@/components/calendar/PlanForm"
+import { AgendaView } from "@/components/calendar/AgendaView"
+import { TimeGridView } from "@/components/calendar/TimeGridView"
+
+type View = "month" | "week" | "day" | "agenda"
+const VIEWS: { id: View; label: string }[] = [
+  { id: "month", label: "Month" },
+  { id: "week", label: "Week" },
+  { id: "day", label: "Day" },
+  { id: "agenda", label: "Agenda" },
+]
 
 const REMINDER_TEXT: Record<number, string> = {
   0: "At time of event",
@@ -64,45 +77,197 @@ const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 
 export const SharedCalendar: React.FC = () => {
   const { user, partner } = useAuth()
-  const { plans, loading, addPlan, removePlan, toggleComplete } = useSharedPlans()
+  const notif = useNotifications()
 
+  const onPartnerInsert = useCallback(
+    (plan: Plan) => {
+      notif.notify(
+        `${partner?.name || "Your partner"} added a ${plan.is_task ? "task" : "plan"} 💕`,
+        { body: plan.title, tag: `partner-${plan.id}` },
+      )
+    },
+    [notif, partner],
+  )
+
+  const { plans, loading, addPlan, updatePlan, removePlan, toggleComplete } = useSharedPlans({
+    onPartnerInsert,
+  })
+  useReminderScheduler(plans, notif.notify)
+
+  const [view, setView] = useState<View>("month")
   const [showAddPlan, setShowAddPlan] = useState(false)
+  const [prefill, setPrefill] = useState<{ date?: string; time?: string } | null>(null)
+  const [editingPlan, setEditingPlan] = useState<Plan | null>(null)
+  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null)
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedHoliday, setSelectedHoliday] = useState<Holiday | null>(null)
 
-  const currentMonth = currentDate.getMonth()
-  const currentYear = currentDate.getFullYear()
-
-  const monthOccurrences = useMemo(() => {
-    const firstKey = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-01`
-    const lastDay = new Date(currentYear, currentMonth + 1, 0).getDate()
-    const lastKey = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`
-    return occurrencesByDay(plans, firstKey, lastKey)
-  }, [plans, currentMonth, currentYear])
-
-  const holidays = useMemo(() => holidaysByDateKey(currentYear), [currentYear])
-  const upcoming = useMemo(() => upcomingOccurrences(plans, todayKey(), 365), [plans])
-
-  const handleAdd = async (input: Parameters<typeof addPlan>[0]) => {
-    const ok = await addPlan(input)
-    if (ok) setShowAddPlan(false)
+  const showForm = showAddPlan || !!editingPlan
+  const closeForm = () => {
+    setShowAddPlan(false)
+    setEditingPlan(null)
+    setPrefill(null)
+  }
+  const handleFormSubmit = async (input: Parameters<typeof addPlan>[0]) => {
+    const ok = editingPlan ? await updatePlan(editingPlan.id, input) : await addPlan(input)
+    if (ok) closeForm()
     return ok
   }
+  const openEdit = (plan: Plan) => {
+    setSelectedPlan(null)
+    setEditingPlan(plan)
+  }
+  const openCreate = (pf: { date?: string; time?: string } | null = null) => {
+    setPrefill(pf)
+    setEditingPlan(null)
+    setShowAddPlan(true)
+  }
 
-  /* ───────── grid ───────── */
-  const renderCalendarView = () => {
+  /* ───────── rango visible según la vista ───────── */
+  const currentMonth = currentDate.getMonth()
+  const currentYear = currentDate.getFullYear()
+  const anchorKey = keyFromDate(currentDate)
+  const weekStart = addDays(anchorKey, -currentDate.getDay())
+  const weekEnd = addDays(weekStart, 6)
+  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate()
+
+  const { first, last } = useMemo(() => {
+    if (view === "week") return { first: weekStart, last: weekEnd }
+    if (view === "day") return { first: anchorKey, last: anchorKey }
+    if (view === "agenda") return { first: anchorKey, last: anchorKey }
+    const f = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-01`
+    const l = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(daysInMonth).padStart(2, "0")}`
+    return { first: f, last: l }
+  }, [view, weekStart, weekEnd, anchorKey, currentYear, currentMonth, daysInMonth])
+
+  const occMap = useMemo(() => occurrencesByDay(plans, first, last), [plans, first, last])
+  const holidayMap = useMemo(() => {
+    const years = new Set([Number(first.slice(0, 4)), Number(last.slice(0, 4))])
+    const map = new Map<string, Holiday[]>()
+    years.forEach((y) =>
+      holidaysByDateKey(y).forEach((v, k) => map.set(k, (map.get(k) ?? []).concat(v))),
+    )
+    return map
+  }, [first, last])
+  const upcoming = useMemo(() => upcomingOccurrences(plans, todayKey(), 365), [plans])
+
+  const weekDays = useMemo(
+    () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
+    [weekStart],
+  )
+
+  /* ───────── navegación adaptativa ───────── */
+  const shift = (dir: number) =>
+    setCurrentDate((d) => {
+      if (view === "month") return new Date(d.getFullYear(), d.getMonth() + dir, 1)
+      const step = view === "week" ? 7 : 1
+      return new Date(d.getFullYear(), d.getMonth(), d.getDate() + dir * step)
+    })
+
+  const title =
+    view === "month"
+      ? currentDate.toLocaleDateString("en-US", { month: "long", year: "numeric" })
+      : view === "week"
+        ? `${formatKey(weekStart, { month: "short", day: "numeric" })} – ${formatKey(weekEnd, { month: "short", day: "numeric", year: "numeric" })}`
+        : view === "day"
+          ? formatKey(anchorKey, { weekday: "long", month: "long", day: "numeric" })
+          : "Agenda"
+
+  /* ───────── toolbar ───────── */
+  const renderToolbar = () => (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="flex items-center gap-2 text-2xl font-bold text-gray-800">
+          <CalendarDays className="h-7 w-7 text-rose-500" />
+          <span className="capitalize">{title}</span>
+        </h3>
+        <div className="flex items-center gap-2">
+          {notif.supported && (
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() =>
+                notif.pushConfigured && user ? notif.enablePush(user.id) : notif.requestPermission()
+              }
+              title={notif.permission === "granted" ? "Notifications on" : "Enable notifications"}
+              aria-label="Notifications"
+              className="rounded-full border-pink-200 hover:bg-pink-50"
+            >
+              {notif.permission === "granted" ? (
+                <BellRing className="h-4 w-4 text-rose-500" />
+              ) : (
+                <Bell className="h-4 w-4 text-gray-400" />
+              )}
+            </Button>
+          )}
+          {view !== "agenda" && (
+            <>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => shift(-1)}
+                className="rounded-full border-pink-200 text-rose-600 hover:bg-pink-50"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => shift(1)}
+                className="rounded-full border-pink-200 text-rose-600 hover:bg-pink-50"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentDate(new Date())}
+            className="rounded-full border-pink-200 px-4 text-rose-600 hover:bg-pink-50"
+          >
+            Today
+          </Button>
+        </div>
+      </div>
+
+      {/* switcher de vistas */}
+      <div className="grid grid-cols-4 gap-1 rounded-2xl bg-pink-100/60 p-1">
+        {VIEWS.map((v) => (
+          <button
+            key={v.id}
+            type="button"
+            onClick={() => setView(v.id)}
+            className={`rounded-xl py-1.5 text-sm font-semibold transition-colors ${
+              view === v.id ? "bg-white text-rose-600 shadow-sm" : "text-gray-500 hover:text-rose-500"
+            }`}
+          >
+            {v.label}
+          </button>
+        ))}
+      </div>
+
+      <Button
+        onClick={() => openCreate(null)}
+        className="w-full rounded-2xl bg-gradient-to-r from-rose-500 to-pink-500 py-6 text-base font-semibold shadow-lg transition-all hover:from-rose-600 hover:to-pink-600 hover:shadow-xl active:scale-[0.99]"
+      >
+        <Plus className="mr-2 h-5 w-5" />
+        Add plan or task
+      </Button>
+    </div>
+  )
+
+  /* ───────── month grid ───────── */
+  const renderMonthGrid = () => {
     const today = new Date()
-    const firstDayOfMonth = new Date(currentYear, currentMonth, 1)
-    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate()
-    const startingDayOfWeek = firstDayOfMonth.getDay()
-
+    const startingDayOfWeek = new Date(currentYear, currentMonth, 1).getDay()
     const cells: React.ReactNode[] = []
     for (let i = 0; i < startingDayOfWeek; i++) cells.push(<div key={`e-${i}`} className="h-24" />)
 
     for (let day = 1; day <= daysInMonth; day++) {
       const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`
-      const dayOccs = monthOccurrences.get(dateStr) ?? []
-      const dayHolidays = holidays.get(dateStr) ?? []
+      const dayOccs = occMap.get(dateStr) ?? []
+      const dayHolidays = holidayMap.get(dateStr) ?? []
       const isToday =
         today.getDate() === day && today.getMonth() === currentMonth && today.getFullYear() === currentYear
 
@@ -110,23 +275,18 @@ export const SharedCalendar: React.FC = () => {
         <div
           key={day}
           className={`h-24 overflow-hidden rounded-xl border p-1.5 transition-all duration-300 ${
-            isToday
-              ? "border-rose-300 bg-gradient-to-br from-rose-100 to-pink-100"
-              : "border-pink-100 bg-white hover:bg-pink-50"
+            isToday ? "border-rose-300 bg-gradient-to-br from-rose-100 to-pink-100" : "border-pink-100 bg-white hover:bg-pink-50"
           }`}
         >
           <div className={`mb-1 text-sm font-semibold ${isToday ? "text-rose-700" : "text-gray-700"}`}>{day}</div>
           <div className="space-y-0.5">
-            {/* holidays */}
             {dayHolidays.map((hol, i) => (
               <button
                 key={`h-${i}`}
                 type="button"
                 onClick={() => setSelectedHoliday(hol)}
                 className={`flex w-full items-center gap-1 truncate rounded px-1.5 py-0.5 text-[10px] font-medium ${
-                  hol.country === "CO"
-                    ? "bg-amber-100 text-amber-800 hover:bg-amber-200"
-                    : "bg-blue-100 text-blue-800 hover:bg-blue-200"
+                  hol.country === "CO" ? "bg-amber-100 text-amber-800 hover:bg-amber-200" : "bg-blue-100 text-blue-800 hover:bg-blue-200"
                 }`}
                 title={`${hol.flag} ${hol.name}`}
               >
@@ -134,25 +294,17 @@ export const SharedCalendar: React.FC = () => {
                 <span className="truncate">{hol.name}</span>
               </button>
             ))}
-            {/* plans */}
             {dayOccs.slice(0, dayHolidays.length > 0 ? 1 : 2).map((occ, i) => {
               const p = occ.plan
-              const color = p.color || DEFAULT_COLOR
               return (
                 <div
                   key={`${p.id}-${i}`}
                   className={`flex cursor-pointer items-center gap-1 truncate rounded-full px-2 py-0.5 text-xs text-white ${p.completed ? "opacity-50 line-through" : ""}`}
-                  style={{ backgroundColor: color }}
+                  style={{ backgroundColor: p.color || DEFAULT_COLOR }}
                   title={`${p.title}${p.time ? ` · ${p.time}` : ""}`}
-                  onClick={() =>
-                    toast.info(`${p.title}${p.time ? ` · ${p.time}` : p.all_day ? " · All day" : ""}`)
-                  }
+                  onClick={() => setSelectedPlan(p)}
                 >
-                  {p.is_task ? (
-                    <ListTodo className="h-3 w-3 shrink-0" />
-                  ) : occ.recurring ? (
-                    <Repeat className="h-3 w-3 shrink-0" />
-                  ) : null}
+                  {p.is_task ? <ListTodo className="h-3 w-3 shrink-0" /> : occ.recurring ? <Repeat className="h-3 w-3 shrink-0" /> : null}
                   <span className="truncate">{p.title}</span>
                 </div>
               )
@@ -168,48 +320,7 @@ export const SharedCalendar: React.FC = () => {
     }
 
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h3 className="flex items-center gap-2 text-2xl font-bold text-gray-800">
-            <CalendarDays className="h-7 w-7 text-rose-500" />
-            {currentDate.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
-          </h3>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setCurrentDate(new Date(currentYear, currentMonth - 1, 1))}
-              className="rounded-full border-pink-200 text-rose-600 hover:bg-pink-50"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentDate(new Date())}
-              className="rounded-full border-pink-200 px-4 text-rose-600 hover:bg-pink-50"
-            >
-              Today
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setCurrentDate(new Date(currentYear, currentMonth + 1, 1))}
-              className="rounded-full border-pink-200 text-rose-600 hover:bg-pink-50"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-
-        <Button
-          onClick={() => setShowAddPlan(true)}
-          className="w-full rounded-2xl bg-gradient-to-r from-rose-500 to-pink-500 py-6 text-base font-semibold shadow-lg transition-all hover:from-rose-600 hover:to-pink-600 hover:shadow-xl active:scale-[0.99]"
-        >
-          <Plus className="mr-2 h-5 w-5" />
-          Add plan or task
-        </Button>
-
+      <div className="space-y-3">
         <div className="grid grid-cols-7 gap-1.5">
           {WEEKDAYS.map((d) => (
             <div key={d} className="py-2 text-center text-sm font-semibold text-gray-500">
@@ -217,10 +328,7 @@ export const SharedCalendar: React.FC = () => {
             </div>
           ))}
         </div>
-
         <div className="grid grid-cols-7 gap-1.5">{cells}</div>
-
-        {/* legend */}
         <div className="flex items-center justify-center gap-4 text-xs text-gray-500">
           <span className="flex items-center gap-1">
             <span className="h-3 w-3 rounded bg-amber-100" /> 🇨🇴 Colombia holiday
@@ -229,148 +337,134 @@ export const SharedCalendar: React.FC = () => {
             <span className="h-3 w-3 rounded bg-blue-100" /> 🇺🇸 USA holiday
           </span>
         </div>
-
-        {/* Upcoming */}
-        <div className="mt-4">
-          <h4 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-800">
-            <Clock className="h-6 w-6 text-rose-500" />
-            Upcoming plans &amp; tasks
-          </h4>
-          <div className="custom-scrollbar max-h-72 space-y-3 overflow-y-auto">
-            {upcoming.map((occ) => {
-              const p = occ.plan
-              const multi = !occ.recurring && !!p.end_date && toDateKey(p.end_date) !== toDateKey(p.date)
-              const color = p.color || DEFAULT_COLOR
-              return (
-                <div
-                  key={p.id}
-                  className="group rounded-2xl border border-pink-100 bg-white/70 p-4 shadow-sm backdrop-blur-sm transition-all hover:shadow-md"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex flex-1 items-start gap-3">
-                      <span className="mt-1.5 h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: color }} />
-                      {p.is_task && (
-                        <Checkbox
-                          checked={p.completed}
-                          onCheckedChange={(c) => toggleComplete(p.id, Boolean(c))}
-                          className="mt-0.5"
-                          aria-label="Complete task"
-                        />
-                      )}
-                      <div className="flex-1">
-                        <h5 className={`mb-1 flex items-center gap-2 font-semibold text-gray-800 ${p.completed ? "text-gray-400 line-through" : ""}`}>
-                          {p.is_task && <ListTodo className="h-4 w-4 shrink-0 text-violet-500" />}
-                          {p.title}
-                          {occ.recurring && <Repeat className="h-3.5 w-3.5 text-rose-400" />}
-                        </h5>
-                        {p.description && <p className="mb-2 text-sm text-gray-600">{p.description}</p>}
-                        <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
-                          <span className="flex items-center gap-1">
-                            {multi ? <CalendarRange className="h-3 w-3" /> : <Calendar className="h-3 w-3" />}
-                            {occ.recurring
-                              ? formatKey(occ.dateKey, { day: "numeric", month: "short", year: "numeric" })
-                              : rangeLabel(p.date, p.end_date)}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            {p.all_day ? "All day" : p.time || "No time"}
-                          </span>
-                          {p.location && (
-                            <span className="flex items-center gap-1">
-                              <MapPin className="h-3 w-3" />
-                              {p.location}
-                            </span>
-                          )}
-                          {p.reminder_minutes !== null && (
-                            <span className="flex items-center gap-1 text-amber-600">
-                              <Bell className="h-3 w-3" />
-                              {reminderLabel(p.reminder_minutes)}
-                            </span>
-                          )}
-                        </div>
-                        <div className="mt-2 flex items-center gap-2 text-xs font-medium text-rose-500">
-                          {p.plan_type === "individual" ? (
-                            <>
-                              <User className="h-3 w-3" />
-                              <span>{p.created_by_name} (Individual)</span>
-                            </>
-                          ) : (
-                            <>
-                              <Users className="h-3 w-3" />
-                              <span>
-                                {p.created_by_name} &amp; {partner?.name || "your partner"} (Together)
-                              </span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    {user && p.created_by === user.id && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removePlan(p.id)}
-                        className="rounded-full text-red-400 opacity-0 transition-opacity hover:bg-red-50 hover:text-red-600 group-hover:opacity-100"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-            {upcoming.length === 0 && (
-              <div className="py-8 text-center text-gray-500">
-                <CalendarDays className="mx-auto mb-3 h-12 w-12 text-pink-300" />
-                <p>Nothing coming up. Add a plan or a task!</p>
-              </div>
-            )}
-          </div>
-        </div>
       </div>
     )
   }
 
+  /* ───────── upcoming list ───────── */
+  const renderUpcoming = () => (
+    <div className="mt-4">
+      <h4 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-800">
+        <Clock className="h-6 w-6 text-rose-500" />
+        Upcoming plans &amp; tasks
+      </h4>
+      <div className="custom-scrollbar max-h-72 space-y-3 overflow-y-auto">
+        {upcoming.map((occ) => {
+          const p = occ.plan
+          const multi = !occ.recurring && !!p.end_date && toDateKey(p.end_date) !== toDateKey(p.date)
+          return (
+            <div key={p.id} className="group rounded-2xl border border-pink-100 bg-white/70 p-4 shadow-sm backdrop-blur-sm transition-all hover:shadow-md">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex flex-1 items-start gap-3">
+                  <span className="mt-1.5 h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: p.color || DEFAULT_COLOR }} />
+                  {p.is_task && (
+                    <Checkbox checked={p.completed} onCheckedChange={(c) => toggleComplete(p.id, Boolean(c))} className="mt-0.5" aria-label="Complete task" />
+                  )}
+                  <div className="flex-1 cursor-pointer" onClick={() => setSelectedPlan(p)}>
+                    <h5 className={`mb-1 flex items-center gap-2 font-semibold text-gray-800 ${p.completed ? "text-gray-400 line-through" : ""}`}>
+                      {p.is_task && <ListTodo className="h-4 w-4 shrink-0 text-violet-500" />}
+                      {p.title}
+                      {occ.recurring && <Repeat className="h-3.5 w-3.5 text-rose-400" />}
+                    </h5>
+                    {p.description && <p className="mb-2 text-sm text-gray-600">{p.description}</p>}
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
+                      <span className="flex items-center gap-1">
+                        {multi ? <CalendarRange className="h-3 w-3" /> : <Calendar className="h-3 w-3" />}
+                        {occ.recurring ? formatKey(occ.dateKey, { day: "numeric", month: "short", year: "numeric" }) : rangeLabel(p.date, p.end_date)}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {p.all_day ? "All day" : p.time || "No time"}
+                      </span>
+                      {p.location && (
+                        <span className="flex items-center gap-1">
+                          <MapPin className="h-3 w-3" />
+                          {p.location}
+                        </span>
+                      )}
+                      {p.reminder_minutes !== null && (
+                        <span className="flex items-center gap-1 text-amber-600">
+                          <Bell className="h-3 w-3" />
+                          {reminderLabel(p.reminder_minutes)}
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-2 flex items-center gap-2 text-xs font-medium text-rose-500">
+                      {p.plan_type === "individual" ? (
+                        <>
+                          <User className="h-3 w-3" />
+                          <span>{p.created_by_name} (Individual)</span>
+                        </>
+                      ) : (
+                        <>
+                          <Users className="h-3 w-3" />
+                          <span>
+                            {p.created_by_name} &amp; {partner?.name || "your partner"} (Together)
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                {user && p.created_by === user.id && (
+                  <div className="flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                    <Button variant="ghost" size="icon" onClick={() => openEdit(p)} className="rounded-full text-gray-400 hover:bg-pink-50 hover:text-rose-600" aria-label="Edit">
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => removePlan(p.id)} className="rounded-full text-red-400 hover:bg-red-50 hover:text-red-600" aria-label="Delete">
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )
+        })}
+        {upcoming.length === 0 && (
+          <div className="py-8 text-center text-gray-500">
+            <CalendarDays className="mx-auto mb-3 h-12 w-12 text-pink-300" />
+            <p>Nothing coming up. Add a plan or a task!</p>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+
+  const renderBody = () => (
+    <div className="space-y-6">
+      {renderToolbar()}
+      {view === "month" && (
+        <>
+          {renderMonthGrid()}
+          {renderUpcoming()}
+        </>
+      )}
+      {(view === "week" || view === "day") && (
+        <TimeGridView
+          days={view === "week" ? weekDays : [anchorKey]}
+          occByDay={occMap}
+          holidaysByDay={holidayMap}
+          onSelectPlan={(occ) => setSelectedPlan(occ.plan)}
+          onSelectHoliday={(h) => setSelectedHoliday(h)}
+          onCreateAt={(date, time) => openCreate({ date, time })}
+        />
+      )}
+      {view === "agenda" && (
+        <AgendaView occurrences={upcoming} onSelectPlan={(occ) => setSelectedPlan(occ.plan)} />
+      )}
+    </div>
+  )
+
   const ParticleBackground = () => (
     <div className="pointer-events-none absolute inset-0 overflow-hidden opacity-30">
       {[...Array(8)].map((_, i) => (
-        <Heart
-          key={`h-${i}`}
-          className="absolute animate-pulse text-pink-300/40"
-          style={{
-            left: `${Math.random() * 100}%`,
-            top: `${Math.random() * 100}%`,
-            fontSize: `${Math.random() * 15 + 10}px`,
-            animationDelay: `${Math.random() * 5}s`,
-            animationDuration: `${Math.random() * 3 + 2}s`,
-          }}
-        />
+        <Heart key={`h-${i}`} className="absolute animate-pulse text-pink-300/40" style={{ left: `${Math.random() * 100}%`, top: `${Math.random() * 100}%`, fontSize: `${Math.random() * 15 + 10}px`, animationDelay: `${Math.random() * 5}s`, animationDuration: `${Math.random() * 3 + 2}s` }} />
       ))}
       {[...Array(6)].map((_, i) => (
-        <Star
-          key={`s-${i}`}
-          className="absolute animate-pulse text-yellow-300/30"
-          style={{
-            left: `${Math.random() * 100}%`,
-            top: `${Math.random() * 100}%`,
-            fontSize: `${Math.random() * 12 + 8}px`,
-            animationDelay: `${Math.random() * 4}s`,
-            animationDuration: `${Math.random() * 2 + 1}s`,
-          }}
-        />
+        <Star key={`s-${i}`} className="absolute animate-pulse text-yellow-300/30" style={{ left: `${Math.random() * 100}%`, top: `${Math.random() * 100}%`, fontSize: `${Math.random() * 12 + 8}px`, animationDelay: `${Math.random() * 4}s`, animationDuration: `${Math.random() * 2 + 1}s` }} />
       ))}
       {[...Array(10)].map((_, i) => (
-        <Sparkles
-          key={`sp-${i}`}
-          className="absolute animate-pulse text-pink-400/30"
-          style={{
-            left: `${Math.random() * 100}%`,
-            top: `${Math.random() * 100}%`,
-            fontSize: `${Math.random() * 14 + 10}px`,
-            animationDelay: `${Math.random() * 6}s`,
-            animationDuration: `${Math.random() * 4 + 2}s`,
-          }}
-        />
+        <Sparkles key={`sp-${i}`} className="absolute animate-pulse text-pink-400/30" style={{ left: `${Math.random() * 100}%`, top: `${Math.random() * 100}%`, fontSize: `${Math.random() * 14 + 10}px`, animationDelay: `${Math.random() * 6}s`, animationDuration: `${Math.random() * 4 + 2}s` }} />
       ))}
     </div>
   )
@@ -397,13 +491,85 @@ export const SharedCalendar: React.FC = () => {
       <Card className="relative overflow-hidden rounded-3xl border border-pink-100 bg-white/80 p-6 shadow-xl backdrop-blur-sm sm:p-8">
         <ParticleBackground />
         <CardContent className="relative z-10 p-0">
-          {showAddPlan ? (
-            <PlanForm onSubmit={handleAdd} onCancel={() => setShowAddPlan(false)} />
+          {showForm ? (
+            <PlanForm initial={editingPlan} prefill={prefill} onSubmit={handleFormSubmit} onCancel={closeForm} />
           ) : (
-            renderCalendarView()
+            renderBody()
           )}
         </CardContent>
       </Card>
+
+      {/* Plan detail modal */}
+      <Dialog open={!!selectedPlan} onOpenChange={(open) => !open && setSelectedPlan(null)}>
+        <DialogContent className="rounded-3xl sm:max-w-md">
+          {selectedPlan && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-2xl">
+                  <span className="h-4 w-4 shrink-0 rounded-full" style={{ backgroundColor: selectedPlan.color || DEFAULT_COLOR }} />
+                  {selectedPlan.is_task && <ListTodo className="h-5 w-5 text-violet-500" />}
+                  <span className={selectedPlan.completed ? "text-gray-400 line-through" : ""}>{selectedPlan.title}</span>
+                </DialogTitle>
+                <DialogDescription className="sr-only">Plan details</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-2 text-sm text-gray-600">
+                <p className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-rose-400" />
+                  {rangeLabel(selectedPlan.date, selectedPlan.end_date)}
+                </p>
+                <p className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-rose-400" />
+                  {selectedPlan.all_day ? "All day" : selectedPlan.time || "No time"}
+                  {selectedPlan.end_time ? ` – ${selectedPlan.end_time}` : ""}
+                </p>
+                {selectedPlan.rrule && (
+                  <p className="flex items-center gap-2">
+                    <Repeat className="h-4 w-4 text-rose-400" />
+                    Repeating event
+                  </p>
+                )}
+                {selectedPlan.location && (
+                  <p className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-rose-400" />
+                    {selectedPlan.location}
+                  </p>
+                )}
+                {selectedPlan.reminder_minutes !== null && (
+                  <p className="flex items-center gap-2 text-amber-600">
+                    <Bell className="h-4 w-4" />
+                    {reminderLabel(selectedPlan.reminder_minutes)}
+                  </p>
+                )}
+                <p className="flex items-center gap-2">
+                  {selectedPlan.plan_type === "individual" ? <User className="h-4 w-4 text-rose-400" /> : <Users className="h-4 w-4 text-rose-400" />}
+                  {selectedPlan.created_by_name}
+                  {selectedPlan.plan_type === "together" && ` & ${partner?.name || "your partner"}`}
+                </p>
+                {selectedPlan.description && <p className="whitespace-pre-wrap pt-2 text-gray-700">{selectedPlan.description}</p>}
+              </div>
+              {user && selectedPlan.created_by === user.id && (
+                <div className="mt-2 flex gap-2">
+                  <Button onClick={() => openEdit(selectedPlan)} className="flex-1 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600">
+                    <Pencil className="mr-2 h-4 w-4" />
+                    Edit
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      removePlan(selectedPlan.id)
+                      setSelectedPlan(null)
+                    }}
+                    className="rounded-xl border-red-200 text-red-500 hover:bg-red-50"
+                  >
+                    <X className="mr-2 h-4 w-4" />
+                    Delete
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Holiday info modal */}
       <Dialog open={!!selectedHoliday} onOpenChange={(open) => !open && setSelectedHoliday(null)}>
@@ -417,14 +583,7 @@ export const SharedCalendar: React.FC = () => {
                   <span className="rounded-full bg-pink-100 px-2 py-0.5 font-medium text-rose-600">
                     {COUNTRY_NAME[selectedHoliday.country]}
                   </span>
-                  <span>
-                    {formatKey(selectedHoliday.dateKey, {
-                      weekday: "long",
-                      day: "numeric",
-                      month: "long",
-                      year: "numeric",
-                    })}
-                  </span>
+                  <span>{formatKey(selectedHoliday.dateKey, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</span>
                 </DialogDescription>
               </DialogHeader>
               <p className="text-gray-600">{selectedHoliday.description}</p>
