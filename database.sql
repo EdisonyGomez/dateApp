@@ -60,7 +60,6 @@ create table public.diary_entries (
           'scared'::text,
           'hopeful'::text,
           'mad'::text,
-          'horny'::text,
           'meh'::text,
           'sleepy'::text,
           'sick'::text,

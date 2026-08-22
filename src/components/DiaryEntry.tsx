@@ -37,7 +37,6 @@ const moodEmojis = {
   grateful: "🙏",
   neutral: "😐",
   cansado: "😴",
-  enamorado: "😍",
   aburrido: "😒",
   sorprendido: "😲",
   confundido: "😕",
@@ -52,20 +51,12 @@ const moodEmojis = {
   scared: "😨",
   hopeful: "🌟",
   mad: "😠",
-  horny: "🔥",
   meh: "😑",
   sleepy: "😴",
   sick: "🤒",
-  jealous: "😒",
   proud: "😎",
 
   // Nuevos estados de ánimo
-  apasionado: "💘",
-  cariñoso: "🤗",
-  meloso: "🍯",
-  tierno: "🐻",
-  coqueto: "😉",
-
   energico: "⚡",
   feliz2: "😄",
   agradecido2: "💝",
@@ -83,12 +74,6 @@ const moodEmojis = {
   irritado: "😤",
   explosivo: "💥",
   sobrepensando: "🧠",
-
-  spicy: "🌶️",
-  travieso: "😏",
-  seductor: "😈",
-  fogoso: "🔥🔥",
-  atrevido: "💋",
 
   reflexivo: "🧘‍♂️",
   introspectivo: "🌀",
@@ -111,7 +96,6 @@ const moodColors: Record<MoodKey, string> = {
   grateful: 'bg-purple-100 text-purple-800',
   neutral: 'bg-gray-100 text-gray-800',
   cansado: 'bg-gray-200 text-gray-800',
-  enamorado: 'bg-pink-100 text-pink-800',
   aburrido: 'bg-gray-300 text-gray-800',
   sorprendido: 'bg-yellow-200 text-yellow-800',
   confundido: 'bg-blue-200 text-blue-800',
@@ -126,19 +110,10 @@ const moodColors: Record<MoodKey, string> = {
   scared: 'bg-red-400 text-red-800',
   hopeful: 'bg-purple-300 text-purple-800',
   mad: 'bg-red-500 text-red-900',
-  horny: 'bg-rose-200 text-rose-800',
   meh: 'bg-slate-200 text-slate-700',
   sleepy: 'bg-indigo-100 text-indigo-800',
   sick: 'bg-lime-100 text-lime-800',
-  jealous: 'bg-emerald-100 text-emerald-800',
   proud: 'bg-amber-100 text-amber-800',
-
-  // ❤️ Románticos / Tiernos
-  apasionado: 'bg-rose-100 text-rose-800',
-  cariñoso: 'bg-pink-100 text-pink-800',
-  meloso: 'bg-amber-100 text-amber-800',
-  tierno: 'bg-sky-100 text-sky-800',
-  coqueto: 'bg-rose-100 text-rose-800',
 
   // ⚡ Energía positiva
   energico: 'bg-yellow-200 text-yellow-900',
@@ -160,13 +135,6 @@ const moodColors: Record<MoodKey, string> = {
   irritado: 'bg-orange-200 text-orange-800',
   explosivo: 'bg-orange-300 text-orange-900',
   sobrepensando: 'bg-indigo-100 text-indigo-800',
-
-  // 🔥 Picantes / Traviesos
-  spicy: 'bg-red-200 text-red-900',
-  travieso: 'bg-rose-200 text-rose-900',
-  seductor: 'bg-fuchsia-200 text-fuchsia-900',
-  fogoso: 'bg-red-300 text-red-900',
-  atrevido: 'bg-pink-200 text-pink-900',
 
   // 💭 Profundos / Reflexivos
   reflexivo: 'bg-emerald-100 text-emerald-800',
