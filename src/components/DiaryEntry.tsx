@@ -8,7 +8,17 @@ import { useAuth } from "@/contexts/AuthProvider"
 // ⛔️ Eliminado: import { supabase } from "@/lib/supabase"
 import type { DiaryEntry as DiaryEntryType } from "@/types"
 import { ProfileModal } from "@/pages/ProfileModal"
-import { Calendar, Lock, Unlock, Edit } from "lucide-react"
+import { Calendar, Lock, Unlock, Edit, Trash2 } from "lucide-react"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 
@@ -25,6 +35,7 @@ interface DiaryEntryProps {
     profiles?: { id: string; name: string; avatar_url?: string | null } | null
   }
   onEdit?: (entry: DiaryEntryType) => void
+  onDelete?: (entry: DiaryEntryType) => void
 }
 
 /** Mapas de estado de ánimo: UI */
@@ -151,7 +162,7 @@ const moodColors: Record<MoodKey, string> = {
  * - Toma el nombre del autor desde entry.profiles?.name o del usuario actual si es propio
  * - Optimiza render (useMemo) para partes derivadas costosas
  */
-export const DiaryEntry: React.FC<DiaryEntryProps> = ({ entry, onEdit }) => {
+export const DiaryEntry: React.FC<DiaryEntryProps> = ({ entry, onEdit, onDelete }) => {
   const { user } = useAuth()
   const isOwn = entry.userId === user?.id
   const validatedMood = entry.mood as MoodKey
@@ -224,6 +235,7 @@ export const DiaryEntry: React.FC<DiaryEntryProps> = ({ entry, onEdit }) => {
 
   const [isHandwritingBookOpen, setIsHandwritingBookOpen] = useState(false)
   const [activeHandwritingImage, setActiveHandwritingImage] = useState<string | null>(null)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
 
   return (
     <div className={cn("flex mb-6", alignment)}>
@@ -407,9 +419,9 @@ export const DiaryEntry: React.FC<DiaryEntryProps> = ({ entry, onEdit }) => {
           </span>
         </div>
 
-        {isOwn && onEdit && (
-          <div className="mx-4 mb-3 text-xs flex justify-end">
-            <button
+        {isOwn && (onEdit || onDelete) && (
+          <div className="mx-4 mb-3 flex flex-wrap justify-end gap-3 text-xs">
+            {onEdit && <button
               onClick={() => onEdit(entry)}
               className={cn(
                 "hover:underline flex items-center gap-1 font-medium transition-colors duration-200",
@@ -418,9 +430,39 @@ export const DiaryEntry: React.FC<DiaryEntryProps> = ({ entry, onEdit }) => {
               aria-label="Editar entrada del diario"
             >
               <Edit className="h-3 w-3" /> Editar
-            </button>
+            </button>}
+            {onDelete && <button
+              onClick={() => setShowDeleteDialog(true)}
+              className="flex items-center gap-1 font-medium text-red-600 transition-colors hover:text-red-800"
+              aria-label="Eliminar entrada del diario"
+            >
+              <Trash2 className="h-3 w-3" /> Eliminar
+            </button>}
           </div>
         )}
+
+        <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Eliminar esta entrada?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Esta acción no se puede deshacer y eliminará este recuerdo del diario.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-red-600 hover:bg-red-700"
+                onClick={() => {
+                  onDelete?.(entry)
+                  setShowDeleteDialog(false)
+                }}
+              >
+                Eliminar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {/* Esquinas decorativas */}
         <div className={cn("absolute top-2 left-2 w-3 h-3 border-l-2 border-t-2 rounded-tl-lg opacity-60", isOwn ? "border-rose-300" : "border-indigo-300")} />

@@ -7,7 +7,7 @@ import {
   DialogHeader,
   DialogTitle
 } from '@/components/ui/dialog'
-import { Camera, Upload } from 'lucide-react'
+import { Camera } from 'lucide-react'
 import { toast } from 'sonner'
 import { SupabaseService } from '@/lib/SupabaseService'
 
@@ -27,7 +27,6 @@ export const PhotoCapture: React.FC<PhotoCaptureProps> = ({
   /* ─────────────────── refs ─────────────────── */
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   /* ────────────────── state ─────────────────── */
   const [isStreaming, setIsStreaming] = useState(false)
@@ -37,6 +36,10 @@ export const PhotoCapture: React.FC<PhotoCaptureProps> = ({
 
   /* ────────────────── cámara ─────────────────── */
   const startCamera = useCallback(async () => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      toast.error('Tu navegador no permite acceder a la cámara.')
+      return
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { 
@@ -50,20 +53,8 @@ export const PhotoCapture: React.FC<PhotoCaptureProps> = ({
       if (videoRef.current) {
         videoRef.current.srcObject = stream
 
-        // Esperar a que el video esté listo
-        const onLoadedMetadata = () => {
-          if (videoRef.current) {
-            videoRef.current.play()
-            setIsStreaming(true)
-          }
-        }
-
-        videoRef.current.addEventListener('loadedmetadata', onLoadedMetadata)
-        
-        // Cleanup del event listener
-        return () => {
-          videoRef.current?.removeEventListener('loadedmetadata', onLoadedMetadata)
-        }
+        await videoRef.current.play()
+        setIsStreaming(true)
       }
     } catch (err) {
       console.error('Camera error:', err)
@@ -127,25 +118,6 @@ export const PhotoCapture: React.FC<PhotoCaptureProps> = ({
     }, 'image/jpeg', 0.9)
   }, [isStreaming, stopCamera])
 
-  /* ──────────────── upload desde disco ─────────────── */
-  const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please select a valid image file')
-      return
-    }
-    
-    setCapturedFile(file)
-    setPreviewUrl(URL.createObjectURL(file))
-    
-    // Reset file input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ''
-    }
-  }, [])
-
   /* ───────────── confirmación (subida) ─────────────── */
   const confirmPhoto = useCallback(async () => {
     if (!capturedFile) {
@@ -190,19 +162,15 @@ export const PhotoCapture: React.FC<PhotoCaptureProps> = ({
   }, [resetState, onClose])
 
   /* ─────────────── Effects ─────────────── */
-  // Iniciar cámara cuando se abre el modal
+  // Iniciar y detener la cámara junto con el modal.
   useEffect(() => {
-    if (isOpen && !previewUrl) {
-      startCamera()
+    if (!isOpen) {
+      stopCamera()
+      return
     }
-    
-    // Cleanup cuando se cierra
-    return () => {
-      if (!isOpen) {
-        stopCamera()
-      }
-    }
-  }, [isOpen]) // Solo depende de isOpen
+    if (!previewUrl) void startCamera()
+    return stopCamera
+  }, [isOpen, previewUrl, startCamera, stopCamera])
 
   // Cleanup al desmontar
   useEffect(() => {
@@ -255,27 +223,12 @@ export const PhotoCapture: React.FC<PhotoCaptureProps> = ({
                   </div>
                 </div>
               ) : (
-                <div className="text-center space-y-4">
-                  <div className="p-8 border-2 border-dashed border-gray-300 rounded-lg">
-                    <Camera className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-sm text-gray-600 mb-4">
-                      Take a photo or upload from your device
-                    </p>
-                    <div className="space-y-2">
-                      <Button onClick={startCamera} className="w-full">
-                        <Camera className="h-4 w-4 mr-2" />
-                        Take Photo
-                      </Button>
-                      <Button
-                        variant="outline"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="w-full"
-                      >
-                        <Upload className="h-4 w-4 mr-2" />
-                        Upload Photo
-                      </Button>
-                    </div>
-                  </div>
+                <div className="rounded-lg border border-dashed p-8 text-center">
+                  <Camera className="mx-auto mb-4 h-12 w-12 text-gray-400" />
+                  <p className="text-sm text-gray-600">Preparando la cámara...</p>
+                  <Button onClick={() => void startCamera()} className="mt-4">
+                    <Camera className="mr-2 h-4 w-4" /> Reintentar cámara
+                  </Button>
                 </div>
               )}
             </>
@@ -306,13 +259,6 @@ export const PhotoCapture: React.FC<PhotoCaptureProps> = ({
             </div>
           )}
 
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleFileUpload}
-            className="hidden"
-          />
         </div>
       </DialogContent>
     </Dialog>

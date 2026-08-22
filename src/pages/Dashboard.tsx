@@ -144,6 +144,15 @@ const { refreshEntries, refreshing } = useDiaryEntries()
     setEditingEntry(null)
   }
 
+  const handleDeleteEntry = async (entry: DiaryEntryType) => {
+    try {
+      await deleteEntry(entry.id)
+      toast.success("Entry deleted successfully")
+    } catch {
+      toast.error("Failed to delete entry")
+    }
+  }
+
   // ───────────────── ESTADO: CARGANDO ─────────────────
   if (loading) {
     return (
@@ -164,7 +173,7 @@ const { refreshEntries, refreshing } = useDiaryEntries()
       <div className="min-h-screen bg-gradient-to-br from-pink-100 via-white to-rose-100 p-4 custom-scrollbar relative overflow-hidden">
         <RomanticBackground />
         <HeartParticles />
-        <div className="container mx-auto max-w-4xl bg-white/70 backdrop-blur-sm rounded-3xl shadow-xl p-8 border border-pink-100 animate-fade-in relative z-10">
+        <div className="container mx-auto max-w-4xl rounded-3xl border border-pink-100 bg-white/70 p-4 shadow-xl backdrop-blur-sm animate-fade-in relative z-10 sm:p-8">
           <div className="flex items-center justify-between mb-6">
             <h1 className="text-3xl font-extrabold text-rose-500">Conecta con tu Pareja</h1>
             <Button
@@ -382,7 +391,7 @@ const { refreshEntries, refreshing } = useDiaryEntries()
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 items-start">
                           {entries.map((entry) => (
-                            <DiaryEntryComponent key={entry.id} entry={entry} onEdit={handleEditEntry} />
+                            <DiaryEntryComponent key={entry.id} entry={entry} onEdit={handleEditEntry} onDelete={handleDeleteEntry} />
                           ))}
                         </div>
                       </div>
@@ -416,7 +425,7 @@ const { refreshEntries, refreshing } = useDiaryEntries()
                             <Card className="rounded-3xl shadow-xl border border-pink-100 bg-white/80 backdrop-blur-sm p-4">
                               <div className="text-sm font-semibold text-rose-600 mb-3">Tú</div>
                               {myEntry ? (
-                                <DiaryEntryComponent entry={myEntry} onEdit={handleEditEntry} />
+                                <DiaryEntryComponent entry={myEntry} onEdit={handleEditEntry} onDelete={handleDeleteEntry} />
                               ) : (
                                 <div className="text-sm text-pink-800/80">No escribiste este día.</div>
                               )}
@@ -427,7 +436,7 @@ const { refreshEntries, refreshing } = useDiaryEntries()
                               <div className="text-sm font-semibold text-rose-600 mb-3">Pareja</div>
                               {partner ? (
                                 partnerEntry ? (
-                                  <DiaryEntryComponent entry={partnerEntry} onEdit={handleEditEntry} />
+                                  <DiaryEntryComponent entry={partnerEntry} onEdit={handleEditEntry} onDelete={handleDeleteEntry} />
                                 ) : (
                                   <div className="text-sm text-pink-800/80">Tu pareja no ha escrito este día.</div>
                                 )

@@ -228,14 +228,14 @@ export const DiaryForm: React.FC<DiaryFormProps> = ({ entry, onSave, onCancel })
   return (
 
     <Card className="w-full max-w-2xl mx-auto">
-      <CardHeader>
+      <CardHeader className="px-4 sm:px-6">
         <CardTitle className="flex items-center">
           <Heart className="h-5 w-5 mr-2 text-pink-500" />
           {entry ? 'Edit Entry' : 'New Diary Entry'}
         </CardTitle>
       </CardHeader>
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2 px-4 sm:px-6">
         <Button
           type="button"
           variant={inputMode === 'text' ? 'default' : 'outline'}
@@ -252,7 +252,7 @@ export const DiaryForm: React.FC<DiaryFormProps> = ({ entry, onSave, onCancel })
         </Button>
       </div>
 
-      <CardContent>
+      <CardContent className="px-4 sm:px-6">
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* fecha y mood */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -326,10 +326,7 @@ export const DiaryForm: React.FC<DiaryFormProps> = ({ entry, onSave, onCancel })
 
           {/* fotos */}
           <div className="space-y-4">
-            <div className="flex items-center space-x-2">
-              <Label htmlFor="photos" className="flex items-center cursor-pointer">
-                <Camera className="h-4 w-4 mr-2" /> Add Photos
-              </Label>
+            <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:items-center">
               <Input
                 id="photos"
                 type="file"
@@ -338,18 +335,31 @@ export const DiaryForm: React.FC<DiaryFormProps> = ({ entry, onSave, onCancel })
                 onChange={handlePhotoUpload}
                 className="hidden"
               />
-              <Button type="button" variant="outline" size="sm" onClick={() => document.getElementById('photos')?.click()} disabled={uploading}>
-                <Camera className="h-4 w-4 mr-2" /> Upload
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => document.getElementById('photos')?.click()}
+                disabled={uploading}
+                className="w-full justify-center gap-1.5 px-2 sm:w-auto sm:px-3"
+              >
+                <Camera className="h-4 w-4 shrink-0" /> Add Photos
               </Button>
-              <Button type="button" variant="outline" size="sm" onClick={() => setShowPhotoCapture(true)}>
-                <Camera className="h-4 w-4 mr-2" /> Take Photo
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowPhotoCapture(true)}
+                className="w-full justify-center gap-1.5 px-2 sm:w-auto sm:px-3"
+              >
+                <Camera className="h-4 w-4 shrink-0" /> Take Photo
               </Button>
             </div>
             {formData.photos.length > 0 && (
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {formData.photos.map((photo, idx) => (
                   <div key={idx} className="relative group">
-                    <img src={photo} alt={`Upload ${idx + 1}`} className="w-full h-20 object-cover rounded-lg" />
+                    <img src={photo} alt={`Photo ${idx + 1}`} className="h-24 w-full rounded-lg object-cover sm:h-28" />
                     <button
                       type="button"
                       onClick={() => removePhoto(idx)}
@@ -376,7 +386,7 @@ export const DiaryForm: React.FC<DiaryFormProps> = ({ entry, onSave, onCancel })
           </div>
 
           {/* acciones */}
-          <div className="flex space-x-3">
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:space-x-3">
             <Button type="submit" className="flex-1" disabled={uploading}>
               {entry ? 'Update Entry' : 'Save Entry'}
             </Button>
