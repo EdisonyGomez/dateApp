@@ -159,31 +159,45 @@ export function useSharedPlans({ onPartnerInsert }: UseSharedPlansOptions = {}) 
         toast.error("You must be logged in to create plans")
         return false
       }
-      const { error } = await supabase.from("shared_plans").insert([
-        {
-          title: input.title,
-          description: input.description,
-          date: input.date,
-          end_date: input.end_date,
-          time: input.time,
-          location: input.location,
-          is_task: input.is_task,
-          completed: false,
-          reminder_minutes: input.reminder_minutes,
-          rrule: input.rrule,
-          all_day: input.all_day,
-          end_time: input.end_time,
-          color: input.color,
-          plan_type: input.plan_type,
-          created_by: user.id,
-        },
-      ])
+      const { data, error } = await supabase
+        .from("shared_plans")
+        .insert([
+          {
+            title: input.title,
+            description: input.description,
+            date: input.date,
+            end_date: input.end_date,
+            time: input.time,
+            location: input.location,
+            is_task: input.is_task,
+            completed: false,
+            reminder_minutes: input.reminder_minutes,
+            rrule: input.rrule,
+            all_day: input.all_day,
+            end_time: input.end_time,
+            color: input.color,
+            plan_type: input.plan_type,
+            created_by: user.id,
+          },
+        ])
+        .select("*")
+        .single()
 
       if (error) {
         toast.error("Failed to create")
         console.error("Error creating plan:", error)
         return false
       }
+
+      // Push a la pareja (background) invocando la Edge Function directamente.
+      // Reemplaza al Database Webhook → evita depender del schema supabase_functions.
+      // Fire-and-forget: no bloquea el guardado si el push falla o no está desplegado.
+      if (data) {
+        supabase.functions
+          .invoke("notify-partner", { body: { type: "INSERT", record: data } })
+          .catch((e) => console.error("notify-partner invoke failed:", e))
+      }
+
       toast.success(input.is_task ? "Task created!" : "Plan created!")
       await fetchPlans()
       return true

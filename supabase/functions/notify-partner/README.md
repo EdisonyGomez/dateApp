@@ -36,14 +36,24 @@ supabase secrets set \
 supabase functions deploy notify-partner --no-verify-jwt
 ```
 
-## 5. Database Webhook
+## 5. How the function gets called
 
-Dashboard → **Database → Webhooks → Create**:
+**No Database Webhook needed.** The app invokes `notify-partner` directly from
+the client right after a plan is inserted (see `addPlan` in
+`src/hooks/useSharedPlans.ts` — `supabase.functions.invoke("notify-partner", …)`).
+Once the function is deployed (step 4) and the SQL migration is applied (step 6),
+background push works.
 
-- Table: `shared_plans`
-- Events: `INSERT`
-- Type: `HTTP Request` → `POST` to the `notify-partner` function URL
-- Header: `Authorization: Bearer <anon or service key>` (per your webhook config)
+### (Optional) Database Webhook instead of client invoke
+
+If you prefer the DB-driven trigger, create it in Dashboard → **Database →
+Webhooks**: table `shared_plans`, event `INSERT`, HTTP POST to the function URL.
+
+> **Error `schema "supabase_functions" does not exist`?** Supabase Webhooks rely
+> on the `pg_net` extension. Enable it first: Dashboard → **Database → Extensions**
+> → search `pg_net` → enable (or run `create extension if not exists pg_net;` in
+> the SQL Editor), then create the webhook again. The client-invoke path above
+> avoids this entirely.
 
 ## 6. Run the SQL migration
 

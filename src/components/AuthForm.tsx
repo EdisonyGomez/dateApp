@@ -60,12 +60,9 @@ export const AuthForm: React.FC = () => {
           <div className="flex flex-col items-center justify-center">
             <Heart className="h-10 w-10 text-pink-500 mb-2 animate-pulse" />
             <CardTitle className="text-3xl font-extrabold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent text-center leading-tight">
-              Diario de Pareja entre Melo y Yesi
+              Couple's Diary
             </CardTitle>
           </div>
-          <CardDescription className="text-lg text-gray-600 font-medium">
-            Comparte tus momentos diarios, sueños y amor con tu pareja.
-          </CardDescription>
         </CardHeader>
         <Tabs defaultValue="login" className="w-full px-6">
           <TabsList className="grid w-full grid-cols-2 rounded-full bg-pink-100/50 p-1 mb-6 shadow-inner">
