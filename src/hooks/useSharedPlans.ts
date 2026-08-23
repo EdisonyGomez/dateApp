@@ -112,6 +112,8 @@ export function useSharedPlans({ onPartnerInsert }: UseSharedPlansOptions = {}) 
   const { user } = useAuth()
   const [plans, setPlans] = useState<Plan[]>([])
   const [loading, setLoading] = useState(false)
+  // completadas por ocurrencia: claves `${plan_id}|${YYYY-MM-DD}`
+  const [completions, setCompletions] = useState<Set<string>>(new Set())
 
   const fetchPlans = useCallback(async () => {
     setLoading(true)
@@ -125,9 +127,63 @@ export function useSharedPlans({ onPartnerInsert }: UseSharedPlansOptions = {}) 
     setLoading(false)
   }, [])
 
+  const fetchCompletions = useCallback(async () => {
+    const { data } = await supabase
+      .from("task_completions")
+      .select("plan_id, occurrence_date")
+    if (data) setCompletions(new Set(data.map((r) => `${r.plan_id}|${r.occurrence_date}`)))
+  }, [])
+
   useEffect(() => {
     fetchPlans()
-  }, [fetchPlans])
+    fetchCompletions()
+  }, [fetchPlans, fetchCompletions])
+
+  /** ¿está completada esta ocurrencia? (recurrentes = por día; únicos = boolean legacy) */
+  const isOccurrenceDone = useCallback(
+    (plan: Plan, dateKey: string): boolean =>
+      plan.rrule ? completions.has(`${plan.id}|${dateKey}`) : plan.completed,
+    [completions],
+  )
+
+  /** Marca/desmarca la ocurrencia de una tarea (recurrente → task_completions). */
+  const toggleOccurrence = useCallback(
+    async (plan: Plan, dateKey: string) => {
+      if (!user) return
+      if (!plan.rrule) {
+        // tarea única → boolean legacy
+        const next = !plan.completed
+        setPlans((prev) => prev.map((p) => (p.id === plan.id ? { ...p, completed: next } : p)))
+        const { error } = await supabase.from("shared_plans").update({ completed: next }).eq("id", plan.id)
+        if (error) setPlans((prev) => prev.map((p) => (p.id === plan.id ? { ...p, completed: !next } : p)))
+        return
+      }
+      const key = `${plan.id}|${dateKey}`
+      const done = completions.has(key)
+      // optimista
+      setCompletions((prev) => {
+        const s = new Set(prev)
+        if (done) s.delete(key)
+        else s.add(key)
+        return s
+      })
+      if (done) {
+        await supabase.from("task_completions").delete().eq("plan_id", plan.id).eq("occurrence_date", dateKey)
+      } else {
+        const { error } = await supabase
+          .from("task_completions")
+          .insert({ plan_id: plan.id, occurrence_date: dateKey, completed_by: user.id })
+        if (error) {
+          setCompletions((prev) => {
+            const s = new Set(prev)
+            s.delete(key)
+            return s
+          })
+        }
+      }
+    },
+    [user, completions],
+  )
 
   // callback en ref → el efecto Realtime no se re-suscribe en cada render
   const onPartnerInsertRef = useRef(onPartnerInsert)
@@ -152,6 +208,20 @@ export function useSharedPlans({ onPartnerInsert }: UseSharedPlansOptions = {}) 
       supabase.removeChannel(channel)
     }
   }, [user, fetchPlans])
+
+  // guarda la zona horaria del usuario → el despachador dispara a la hora LOCAL
+  useEffect(() => {
+    if (!user) return
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+    if (!tz) return
+    supabase
+      .from("profiles")
+      .update({ timezone: tz })
+      .eq("id", user.id)
+      .then(({ error }) => {
+        if (error) console.error("timezone update failed:", error)
+      })
+  }, [user])
 
   const addPlan = useCallback(
     async (input: NewPlanInput): Promise<boolean> => {
@@ -189,10 +259,10 @@ export function useSharedPlans({ onPartnerInsert }: UseSharedPlansOptions = {}) 
         return false
       }
 
-      // Push a la pareja (background) invocando la Edge Function directamente.
-      // Reemplaza al Database Webhook → evita depender del schema supabase_functions.
+      // Heads-up inmediato a la pareja SOLO para planes (las tareas son personales).
+      // El recordatorio programado (a la hora) lo maneja la función dispatch-reminders.
       // Fire-and-forget: no bloquea el guardado si el push falla o no está desplegado.
-      if (data) {
+      if (data && !data.is_task) {
         supabase.functions
           .invoke("notify-partner", { body: { type: "INSERT", record: data } })
           .catch((e) => console.error("notify-partner invoke failed:", e))
@@ -269,5 +339,17 @@ export function useSharedPlans({ onPartnerInsert }: UseSharedPlansOptions = {}) 
     [],
   )
 
-  return { plans, loading, addPlan, updatePlan, removePlan, toggleComplete, refetch: fetchPlans }
+  return {
+    plans,
+    loading,
+    completions,
+    addPlan,
+    updatePlan,
+    removePlan,
+    toggleComplete,
+    isOccurrenceDone,
+    toggleOccurrence,
+    refetch: fetchPlans,
+    refetchCompletions: fetchCompletions,
+  }
 }

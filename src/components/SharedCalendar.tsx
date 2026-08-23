@@ -1,6 +1,6 @@
 "use client"
 import type React from "react"
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -89,10 +89,22 @@ export const SharedCalendar: React.FC = () => {
     [notif, partner],
   )
 
-  const { plans, loading, addPlan, updatePlan, removePlan, toggleComplete } = useSharedPlans({
-    onPartnerInsert,
-  })
+  const { plans, loading, addPlan, updatePlan, removePlan, isOccurrenceDone, toggleOccurrence } =
+    useSharedPlans({ onPartnerInsert })
   useReminderScheduler(plans, notif.notify)
+
+  // intent "✓ Done" desde la notificación: /?complete=<planId>&date=<YYYY-MM-DD>
+  useEffect(() => {
+    if (plans.length === 0) return
+    const params = new URLSearchParams(window.location.search)
+    const planId = params.get("complete")
+    const date = params.get("date")
+    if (!planId || !date) return
+    const plan = plans.find((p) => p.id === planId)
+    if (plan && !isOccurrenceDone(plan, date)) toggleOccurrence(plan, date)
+    // limpia la URL para no re-disparar
+    window.history.replaceState({}, "", window.location.pathname)
+  }, [plans, isOccurrenceDone, toggleOccurrence])
 
   const [view, setView] = useState<View>("month")
   const [showAddPlan, setShowAddPlan] = useState(false)
@@ -352,16 +364,17 @@ export const SharedCalendar: React.FC = () => {
         {upcoming.map((occ) => {
           const p = occ.plan
           const multi = !occ.recurring && !!p.end_date && toDateKey(p.end_date) !== toDateKey(p.date)
+          const done = isOccurrenceDone(p, occ.dateKey)
           return (
             <div key={p.id} className="group rounded-2xl border border-pink-100 bg-white/70 p-4 shadow-sm backdrop-blur-sm transition-all hover:shadow-md">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex flex-1 items-start gap-3">
                   <span className="mt-1.5 h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: p.color || DEFAULT_COLOR }} />
                   {p.is_task && (
-                    <Checkbox checked={p.completed} onCheckedChange={(c) => toggleComplete(p.id, Boolean(c))} className="mt-0.5" aria-label="Complete task" />
+                    <Checkbox checked={done} onCheckedChange={() => toggleOccurrence(p, occ.dateKey)} className="mt-0.5" aria-label="Complete task" />
                   )}
                   <div className="flex-1 cursor-pointer" onClick={() => setSelectedPlan(p)}>
-                    <h5 className={`mb-1 flex items-center gap-2 font-semibold text-gray-800 ${p.completed ? "text-gray-400 line-through" : ""}`}>
+                    <h5 className={`mb-1 flex items-center gap-2 font-semibold text-gray-800 ${done ? "text-gray-400 line-through" : ""}`}>
                       {p.is_task && <ListTodo className="h-4 w-4 shrink-0 text-violet-500" />}
                       {p.title}
                       {occ.recurring && <Repeat className="h-3.5 w-3.5 text-rose-400" />}

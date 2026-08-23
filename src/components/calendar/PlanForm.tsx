@@ -124,7 +124,7 @@ export const PlanForm: React.FC<PlanFormProps> = ({ onSubmit, onCancel, initial,
           location: "",
           is_task: false,
           all_day: false,
-          reminder: "none",
+          reminder: "0", // recordatorio ON por defecto; el usuario elige cuándo
           color: EVENT_COLORS[0].value,
           plan_type: "individual" as "individual" | "together",
         },

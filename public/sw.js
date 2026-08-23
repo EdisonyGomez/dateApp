@@ -1,8 +1,8 @@
 /* ───────────────────────────────────────────────
- *  Service Worker — Web Push
+ *  Service Worker — Web Push + acciones
  * ───────────────────────────────────────────────
- *  Recibe pushes de la Edge Function y muestra la notificación,
- *  incluso con la app cerrada (en móvil, iOS requiere PWA instalada).
+ *  Muestra pushes (app cerrada incluida) y soporta el botón
+ *  interactivo "✓ Done" de los recordatorios de tareas.
  */
 
 self.addEventListener("push", (event) => {
@@ -19,7 +19,8 @@ self.addEventListener("push", (event) => {
     icon: data.icon || "/icon-192.png",
     badge: data.badge || "/icon-192.png",
     tag: data.tag,
-    data: { url: data.url || "/" },
+    actions: Array.isArray(data.actions) ? data.actions : [],
+    data: data.data || { url: data.url || "/" },
   }
 
   event.waitUntil(self.registration.showNotification(title, options))
@@ -27,11 +28,23 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close()
-  const url = (event.notification.data && event.notification.data.url) || "/"
+  const d = event.notification.data || {}
+
+  // "✓ Done": abrir la app con el intent de completar esa ocurrencia
+  let url = d.url || "/"
+  if (event.action === "complete" && d.plan_id && d.date) {
+    url = `/?complete=${encodeURIComponent(d.plan_id)}&date=${encodeURIComponent(d.date)}`
+  }
+
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      // si hay una ventana abierta, enfocarla y navegar al intent
       for (const client of clients) {
-        if ("focus" in client) return client.focus()
+        if ("focus" in client) {
+          client.focus()
+          if (url !== "/" && "navigate" in client) client.navigate(url).catch(() => undefined)
+          return
+        }
       }
       if (self.clients.openWindow) return self.clients.openWindow(url)
     }),
