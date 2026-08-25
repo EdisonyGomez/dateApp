@@ -11,6 +11,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/AuthProvider"
 import { toast } from "sonner"
+import { excludeOccurrence, endSeriesBefore, isFirstOccurrence } from "@/lib/calendar/recurrence"
 
 export interface Plan {
   id: string
@@ -321,6 +322,40 @@ export function useSharedPlans({ onPartnerInsert }: UseSharedPlansOptions = {}) 
     [],
   )
 
+  /** Actualiza solo la regla de recurrencia de un plan. */
+  const patchRrule = useCallback(
+    async (id: string, rrule: string) => {
+      setPlans((prev) => prev.map((p) => (p.id === id ? { ...p, rrule } : p)))
+      const { error } = await supabase.from("shared_plans").update({ rrule }).eq("id", id)
+      if (error) {
+        toast.error("Failed to update series")
+        await fetchPlans()
+      }
+    },
+    [fetchPlans],
+  )
+
+  /** Borra SOLO esta ocurrencia (EXDATE). Únicos → borra el plan. */
+  const deleteOccurrence = useCallback(
+    async (plan: Plan, dateKey: string) => {
+      if (!plan.rrule) return removePlan(plan.id)
+      await patchRrule(plan.id, excludeOccurrence(plan.rrule, dateKey))
+      toast.success("Event deleted")
+    },
+    [patchRrule, removePlan],
+  )
+
+  /** Borra esta ocurrencia y todas las SIGUIENTES (UNTIL). Si es la primera → todo. */
+  const deleteFutureFrom = useCallback(
+    async (plan: Plan, dateKey: string) => {
+      if (!plan.rrule) return removePlan(plan.id)
+      if (isFirstOccurrence(plan.rrule, dateKey)) return removePlan(plan.id)
+      await patchRrule(plan.id, endSeriesBefore(plan.rrule, dateKey))
+      toast.success("This and following events deleted")
+    },
+    [patchRrule, removePlan],
+  )
+
   const toggleComplete = useCallback(
     async (id: string, completed: boolean) => {
       // optimista: refleja ya y revierte si falla
@@ -346,6 +381,8 @@ export function useSharedPlans({ onPartnerInsert }: UseSharedPlansOptions = {}) 
     addPlan,
     updatePlan,
     removePlan,
+    deleteOccurrence,
+    deleteFutureFrom,
     toggleComplete,
     isOccurrenceDone,
     toggleOccurrence,

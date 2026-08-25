@@ -32,16 +32,20 @@ import {
   CalendarRange,
   Repeat,
   Pencil,
+  Check,
+  RotateCcw,
 } from "lucide-react"
 import { useSharedPlans, type Plan } from "@/hooks/useSharedPlans"
 import { useNotifications } from "@/hooks/useNotifications"
 import { useReminderScheduler } from "@/hooks/useReminderScheduler"
 import { toDateKey, todayKey, formatKey, addDays, keyFromDate } from "@/lib/date"
-import { occurrencesByDay, upcomingOccurrences } from "@/lib/calendar/recurrence"
+import { occurrencesByDay, upcomingOccurrences, type Occurrence } from "@/lib/calendar/recurrence"
 import { holidaysByDateKey, type Holiday } from "@/lib/calendar/holidays"
 import { PlanForm } from "@/components/calendar/PlanForm"
 import { AgendaView } from "@/components/calendar/AgendaView"
 import { TimeGridView } from "@/components/calendar/TimeGridView"
+import { DayEventsDialog } from "@/components/calendar/DayEventsDialog"
+import { DeleteRecurringDialog, type DeleteMode } from "@/components/calendar/DeleteRecurringDialog"
 
 type View = "month" | "week" | "day" | "agenda"
 const VIEWS: { id: View; label: string }[] = [
@@ -75,6 +79,26 @@ const rangeLabel = (start: string, end: string | null): string => {
 const DEFAULT_COLOR = "#f43f5e"
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 
+/** Agrupa ocurrencias en secciones: Today / Tomorrow / This week / por mes. */
+const groupUpcoming = (occs: Occurrence[]): { label: string; items: Occurrence[] }[] => {
+  const today = todayKey()
+  const tomorrow = addDays(today, 1)
+  const weekEnd = addDays(today, 7)
+  const order: string[] = []
+  const map = new Map<string, Occurrence[]>()
+  for (const occ of occs) {
+    const d = occ.dateKey
+    const label =
+      d === today ? "Today" : d === tomorrow ? "Tomorrow" : d <= weekEnd ? "This week" : formatKey(d, { month: "long", year: "numeric" })
+    if (!map.has(label)) {
+      map.set(label, [])
+      order.push(label)
+    }
+    map.get(label)!.push(occ)
+  }
+  return order.map((label) => ({ label, items: map.get(label)! }))
+}
+
 export const SharedCalendar: React.FC = () => {
   const { user, partner } = useAuth()
   const notif = useNotifications()
@@ -89,8 +113,17 @@ export const SharedCalendar: React.FC = () => {
     [notif, partner],
   )
 
-  const { plans, loading, addPlan, updatePlan, removePlan, isOccurrenceDone, toggleOccurrence } =
-    useSharedPlans({ onPartnerInsert })
+  const {
+    plans,
+    loading,
+    addPlan,
+    updatePlan,
+    removePlan,
+    deleteOccurrence,
+    deleteFutureFrom,
+    isOccurrenceDone,
+    toggleOccurrence,
+  } = useSharedPlans({ onPartnerInsert })
   useReminderScheduler(plans, notif.notify)
 
   // intent "✓ Done" desde la notificación: /?complete=<planId>&date=<YYYY-MM-DD>
@@ -110,9 +143,28 @@ export const SharedCalendar: React.FC = () => {
   const [showAddPlan, setShowAddPlan] = useState(false)
   const [prefill, setPrefill] = useState<{ date?: string; time?: string } | null>(null)
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null)
-  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null)
+  const [selected, setSelected] = useState<{ plan: Plan; dateKey: string } | null>(null)
+  const [selectedDay, setSelectedDay] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<{ plan: Plan; dateKey: string } | null>(null)
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedHoliday, setSelectedHoliday] = useState<Holiday | null>(null)
+
+  const openDetail = (plan: Plan, dateKey: string) => setSelected({ plan, dateKey })
+
+  /** Borrar: recurrente → diálogo de opciones; único → borra directo. */
+  const requestDelete = (plan: Plan, dateKey: string) => {
+    setSelected(null)
+    if (plan.rrule) setDeleteTarget({ plan, dateKey })
+    else removePlan(plan.id)
+  }
+  const handleDeleteChoice = (mode: DeleteMode) => {
+    if (!deleteTarget) return
+    const { plan, dateKey } = deleteTarget
+    if (mode === "this") deleteOccurrence(plan, dateKey)
+    else if (mode === "future") deleteFutureFrom(plan, dateKey)
+    else removePlan(plan.id)
+    setDeleteTarget(null)
+  }
 
   const showForm = showAddPlan || !!editingPlan
   const closeForm = () => {
@@ -126,7 +178,7 @@ export const SharedCalendar: React.FC = () => {
     return ok
   }
   const openEdit = (plan: Plan) => {
-    setSelectedPlan(null)
+    setSelected(null)
     setEditingPlan(plan)
   }
   const openCreate = (pf: { date?: string; time?: string } | null = null) => {
@@ -286,7 +338,8 @@ export const SharedCalendar: React.FC = () => {
       cells.push(
         <div
           key={day}
-          className={`h-24 overflow-hidden rounded-xl border p-1.5 transition-all duration-300 ${
+          onClick={() => setSelectedDay(dateStr)}
+          className={`h-24 cursor-pointer overflow-hidden rounded-xl border p-1.5 transition-all duration-300 hover:ring-2 hover:ring-rose-200 ${
             isToday ? "border-rose-300 bg-gradient-to-br from-rose-100 to-pink-100" : "border-pink-100 bg-white hover:bg-pink-50"
           }`}
         >
@@ -296,7 +349,10 @@ export const SharedCalendar: React.FC = () => {
               <button
                 key={`h-${i}`}
                 type="button"
-                onClick={() => setSelectedHoliday(hol)}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setSelectedHoliday(hol)
+                }}
                 className={`flex w-full items-center gap-1 truncate rounded px-1.5 py-0.5 text-[10px] font-medium ${
                   hol.country === "CO" ? "bg-amber-100 text-amber-800 hover:bg-amber-200" : "bg-blue-100 text-blue-800 hover:bg-blue-200"
                 }`}
@@ -314,7 +370,10 @@ export const SharedCalendar: React.FC = () => {
                   className={`flex cursor-pointer items-center gap-1 truncate rounded-full px-2 py-0.5 text-xs text-white ${p.completed ? "opacity-50 line-through" : ""}`}
                   style={{ backgroundColor: p.color || DEFAULT_COLOR }}
                   title={`${p.title}${p.time ? ` · ${p.time}` : ""}`}
-                  onClick={() => setSelectedPlan(p)}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    openDetail(p, dateStr)
+                  }}
                 >
                   {p.is_task ? <ListTodo className="h-3 w-3 shrink-0" /> : occ.recurring ? <Repeat className="h-3 w-3 shrink-0" /> : null}
                   <span className="truncate">{p.title}</span>
@@ -353,95 +412,114 @@ export const SharedCalendar: React.FC = () => {
     )
   }
 
-  /* ───────── upcoming list ───────── */
-  const renderUpcoming = () => (
-    <div className="mt-4">
-      <h4 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-800">
-        <Clock className="h-6 w-6 text-rose-500" />
-        Upcoming plans &amp; tasks
-      </h4>
-      <div className="custom-scrollbar max-h-72 space-y-3 overflow-y-auto">
-        {upcoming.map((occ) => {
-          const p = occ.plan
-          const multi = !occ.recurring && !!p.end_date && toDateKey(p.end_date) !== toDateKey(p.date)
-          const done = isOccurrenceDone(p, occ.dateKey)
-          return (
-            <div key={p.id} className="group rounded-2xl border border-pink-100 bg-white/70 p-4 shadow-sm backdrop-blur-sm transition-all hover:shadow-md">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex flex-1 items-start gap-3">
-                  <span className="mt-1.5 h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: p.color || DEFAULT_COLOR }} />
-                  {p.is_task && (
-                    <Checkbox checked={done} onCheckedChange={() => toggleOccurrence(p, occ.dateKey)} className="mt-0.5" aria-label="Complete task" />
-                  )}
-                  <div className="flex-1 cursor-pointer" onClick={() => setSelectedPlan(p)}>
-                    <h5 className={`mb-1 flex items-center gap-2 font-semibold text-gray-800 ${done ? "text-gray-400 line-through" : ""}`}>
-                      {p.is_task && <ListTodo className="h-4 w-4 shrink-0 text-violet-500" />}
-                      {p.title}
-                      {occ.recurring && <Repeat className="h-3.5 w-3.5 text-rose-400" />}
-                    </h5>
-                    {p.description && <p className="mb-2 text-sm text-gray-600">{p.description}</p>}
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
-                      <span className="flex items-center gap-1">
-                        {multi ? <CalendarRange className="h-3 w-3" /> : <Calendar className="h-3 w-3" />}
-                        {occ.recurring ? formatKey(occ.dateKey, { day: "numeric", month: "short", year: "numeric" }) : rangeLabel(p.date, p.end_date)}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {p.all_day ? "All day" : p.time || "No time"}
-                      </span>
-                      {p.location && (
-                        <span className="flex items-center gap-1">
-                          <MapPin className="h-3 w-3" />
-                          {p.location}
-                        </span>
-                      )}
-                      {p.reminder_minutes !== null && (
-                        <span className="flex items-center gap-1 text-amber-600">
-                          <Bell className="h-3 w-3" />
-                          {reminderLabel(p.reminder_minutes)}
-                        </span>
-                      )}
-                    </div>
-                    <div className="mt-2 flex items-center gap-2 text-xs font-medium text-rose-500">
-                      {p.plan_type === "individual" ? (
-                        <>
-                          <User className="h-3 w-3" />
-                          <span>{p.created_by_name} (Individual)</span>
-                        </>
-                      ) : (
-                        <>
-                          <Users className="h-3 w-3" />
-                          <span>
-                            {p.created_by_name} &amp; {partner?.name || "your partner"} (Together)
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                {user && p.created_by === user.id && (
-                  <div className="flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                    <Button variant="ghost" size="icon" onClick={() => openEdit(p)} className="rounded-full text-gray-400 hover:bg-pink-50 hover:text-rose-600" aria-label="Edit">
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => removePlan(p.id)} className="rounded-full text-red-400 hover:bg-red-50 hover:text-red-600" aria-label="Delete">
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
+  /* ───────── upcoming list (agrupada) ───────── */
+  const renderUpcomingItem = (occ: Occurrence) => {
+    const p = occ.plan
+    const multi = !occ.recurring && !!p.end_date && toDateKey(p.end_date) !== toDateKey(p.date)
+    const done = isOccurrenceDone(p, occ.dateKey)
+    return (
+      <div key={`${p.id}-${occ.dateKey}`} className="group rounded-2xl border border-pink-100 bg-white/70 p-4 shadow-sm backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex flex-1 items-start gap-3">
+            <span className="mt-1.5 h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: p.color || DEFAULT_COLOR }} />
+            {p.is_task && (
+              <Checkbox checked={done} onCheckedChange={() => toggleOccurrence(p, occ.dateKey)} className="mt-0.5" aria-label="Complete task" />
+            )}
+            <div className="flex-1 cursor-pointer" onClick={() => openDetail(p, occ.dateKey)}>
+              <h5 className={`mb-1 flex items-center gap-2 font-semibold text-gray-800 ${done ? "text-gray-400 line-through" : ""}`}>
+                {p.is_task && <ListTodo className="h-4 w-4 shrink-0 text-violet-500" />}
+                {p.title}
+                {occ.recurring && <Repeat className="h-3.5 w-3.5 text-rose-400" />}
+              </h5>
+              {p.description && <p className="mb-2 text-sm text-gray-600">{p.description}</p>}
+              <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
+                <span className="flex items-center gap-1">
+                  {multi ? <CalendarRange className="h-3 w-3" /> : <Calendar className="h-3 w-3" />}
+                  {occ.recurring ? formatKey(occ.dateKey, { day: "numeric", month: "short", year: "numeric" }) : rangeLabel(p.date, p.end_date)}
+                </span>
+                <span className="flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  {p.all_day ? "All day" : p.time || "No time"}
+                </span>
+                {p.location && (
+                  <span className="flex items-center gap-1">
+                    <MapPin className="h-3 w-3" />
+                    {p.location}
+                  </span>
+                )}
+                {p.reminder_minutes !== null && (
+                  <span className="flex items-center gap-1 text-amber-600">
+                    <Bell className="h-3 w-3" />
+                    {reminderLabel(p.reminder_minutes)}
+                  </span>
+                )}
+              </div>
+              <div className="mt-2 flex items-center gap-2 text-xs font-medium text-rose-500">
+                {p.plan_type === "individual" ? (
+                  <>
+                    <User className="h-3 w-3" />
+                    <span>{p.created_by_name} (Individual)</span>
+                  </>
+                ) : (
+                  <>
+                    <Users className="h-3 w-3" />
+                    <span>
+                      {p.created_by_name} &amp; {partner?.name || "your partner"} (Together)
+                    </span>
+                  </>
                 )}
               </div>
             </div>
-          )
-        })}
-        {upcoming.length === 0 && (
+          </div>
+          {user && p.created_by === user.id && (
+            <div className="flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+              <Button variant="ghost" size="icon" onClick={() => openEdit(p)} className="rounded-full text-gray-400 hover:bg-pink-50 hover:text-rose-600" aria-label="Edit">
+                <Pencil className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="icon" onClick={() => requestDelete(p, occ.dateKey)} className="rounded-full text-red-400 hover:bg-red-50 hover:text-red-600" aria-label="Delete">
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  const renderUpcoming = () => {
+    const sections = groupUpcoming(upcoming)
+    return (
+      <div className="mt-4">
+        <h4 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-800">
+          <Clock className="h-6 w-6 text-rose-500" />
+          Upcoming plans &amp; tasks
+        </h4>
+        {upcoming.length === 0 ? (
           <div className="py-8 text-center text-gray-500">
             <CalendarDays className="mx-auto mb-3 h-12 w-12 text-pink-300" />
             <p>Nothing coming up. Add a plan or a task!</p>
           </div>
+        ) : (
+          <div className="custom-scrollbar max-h-[30rem] space-y-6 overflow-y-auto pr-1">
+            {sections.map((sec) => (
+              <div key={sec.label}>
+                {/* título de sección */}
+                <div className="sticky top-0 z-10 mb-2 flex items-center gap-2 bg-white/80 py-1 backdrop-blur-sm">
+                  <span className="h-2 w-2 rounded-full bg-rose-400" />
+                  <h5 className="text-xs font-bold uppercase tracking-wide text-gray-500">{sec.label}</h5>
+                  <span className="rounded-full bg-pink-100 px-2 py-0.5 text-[11px] font-semibold text-rose-500">
+                    {sec.items.length}
+                  </span>
+                  <span className="h-px flex-1 bg-pink-100" />
+                </div>
+                <div className="space-y-3">{sec.items.map(renderUpcomingItem)}</div>
+              </div>
+            ))}
+          </div>
         )}
       </div>
-    </div>
-  )
+    )
+  }
 
   const renderBody = () => (
     <div className="space-y-6">
@@ -457,13 +535,13 @@ export const SharedCalendar: React.FC = () => {
           days={view === "week" ? weekDays : [anchorKey]}
           occByDay={occMap}
           holidaysByDay={holidayMap}
-          onSelectPlan={(occ) => setSelectedPlan(occ.plan)}
+          onSelectPlan={(occ) => openDetail(occ.plan, occ.dateKey)}
           onSelectHoliday={(h) => setSelectedHoliday(h)}
           onCreateAt={(date, time) => openCreate({ date, time })}
         />
       )}
       {view === "agenda" && (
-        <AgendaView occurrences={upcoming} onSelectPlan={(occ) => setSelectedPlan(occ.plan)} />
+        <AgendaView occurrences={upcoming} onSelectPlan={(occ) => openDetail(occ.plan, occ.dateKey)} />
       )}
     </div>
   )
@@ -513,74 +591,92 @@ export const SharedCalendar: React.FC = () => {
       </Card>
 
       {/* Plan detail modal */}
-      <Dialog open={!!selectedPlan} onOpenChange={(open) => !open && setSelectedPlan(null)}>
+      <Dialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)}>
         <DialogContent className="rounded-3xl sm:max-w-md">
-          {selectedPlan && (
-            <>
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2 text-2xl">
-                  <span className="h-4 w-4 shrink-0 rounded-full" style={{ backgroundColor: selectedPlan.color || DEFAULT_COLOR }} />
-                  {selectedPlan.is_task && <ListTodo className="h-5 w-5 text-violet-500" />}
-                  <span className={selectedPlan.completed ? "text-gray-400 line-through" : ""}>{selectedPlan.title}</span>
-                </DialogTitle>
-                <DialogDescription className="sr-only">Plan details</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-2 text-sm text-gray-600">
-                <p className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-rose-400" />
-                  {rangeLabel(selectedPlan.date, selectedPlan.end_date)}
-                </p>
-                <p className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-rose-400" />
-                  {selectedPlan.all_day ? "All day" : selectedPlan.time || "No time"}
-                  {selectedPlan.end_time ? ` – ${selectedPlan.end_time}` : ""}
-                </p>
-                {selectedPlan.rrule && (
-                  <p className="flex items-center gap-2">
-                    <Repeat className="h-4 w-4 text-rose-400" />
-                    Repeating event
-                  </p>
-                )}
-                {selectedPlan.location && (
-                  <p className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4 text-rose-400" />
-                    {selectedPlan.location}
-                  </p>
-                )}
-                {selectedPlan.reminder_minutes !== null && (
-                  <p className="flex items-center gap-2 text-amber-600">
-                    <Bell className="h-4 w-4" />
-                    {reminderLabel(selectedPlan.reminder_minutes)}
-                  </p>
-                )}
-                <p className="flex items-center gap-2">
-                  {selectedPlan.plan_type === "individual" ? <User className="h-4 w-4 text-rose-400" /> : <Users className="h-4 w-4 text-rose-400" />}
-                  {selectedPlan.created_by_name}
-                  {selectedPlan.plan_type === "together" && ` & ${partner?.name || "your partner"}`}
-                </p>
-                {selectedPlan.description && <p className="whitespace-pre-wrap pt-2 text-gray-700">{selectedPlan.description}</p>}
-              </div>
-              {user && selectedPlan.created_by === user.id && (
-                <div className="mt-2 flex gap-2">
-                  <Button onClick={() => openEdit(selectedPlan)} className="flex-1 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600">
-                    <Pencil className="mr-2 h-4 w-4" />
-                    Edit
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      removePlan(selectedPlan.id)
-                      setSelectedPlan(null)
-                    }}
-                    className="rounded-xl border-red-200 text-red-500 hover:bg-red-50"
-                  >
-                    <X className="mr-2 h-4 w-4" />
-                    Delete
-                  </Button>
-                </div>
-              )}
-            </>
-          )}
+          {selected &&
+            (() => {
+              const p = selected.plan
+              const done = isOccurrenceDone(p, selected.dateKey)
+              const isOwner = user && p.created_by === user.id
+              return (
+                <>
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2 text-2xl">
+                      <span className="h-4 w-4 shrink-0 rounded-full" style={{ backgroundColor: p.color || DEFAULT_COLOR }} />
+                      {p.is_task && <ListTodo className="h-5 w-5 text-violet-500" />}
+                      <span className={done ? "text-gray-400 line-through" : ""}>{p.title}</span>
+                    </DialogTitle>
+                    <DialogDescription className="sr-only">Plan details</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-2 text-sm text-gray-600">
+                    <p className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-rose-400" />
+                      {p.rrule
+                        ? formatKey(selected.dateKey, { weekday: "short", day: "numeric", month: "short", year: "numeric" })
+                        : rangeLabel(p.date, p.end_date)}
+                    </p>
+                    <p className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-rose-400" />
+                      {p.all_day ? "All day" : p.time || "No time"}
+                      {p.end_time ? ` – ${p.end_time}` : ""}
+                    </p>
+                    {p.rrule && (
+                      <p className="flex items-center gap-2">
+                        <Repeat className="h-4 w-4 text-rose-400" />
+                        Repeating event
+                      </p>
+                    )}
+                    {p.location && (
+                      <p className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4 text-rose-400" />
+                        {p.location}
+                      </p>
+                    )}
+                    {p.reminder_minutes !== null && (
+                      <p className="flex items-center gap-2 text-amber-600">
+                        <Bell className="h-4 w-4" />
+                        {reminderLabel(p.reminder_minutes)}
+                      </p>
+                    )}
+                    <p className="flex items-center gap-2">
+                      {p.plan_type === "individual" ? <User className="h-4 w-4 text-rose-400" /> : <Users className="h-4 w-4 text-rose-400" />}
+                      {p.created_by_name}
+                      {p.plan_type === "together" && ` & ${partner?.name || "your partner"}`}
+                    </p>
+                    {p.description && <p className="whitespace-pre-wrap pt-2 text-gray-700">{p.description}</p>}
+                  </div>
+
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {p.is_task && (
+                      <Button
+                        onClick={() => toggleOccurrence(p, selected.dateKey)}
+                        variant={done ? "outline" : "default"}
+                        className={done ? "flex-1 rounded-xl" : "flex-1 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600"}
+                      >
+                        {done ? <RotateCcw className="mr-2 h-4 w-4" /> : <Check className="mr-2 h-4 w-4" />}
+                        {done ? "Undo" : "Mark done"}
+                      </Button>
+                    )}
+                    {isOwner && (
+                      <>
+                        <Button onClick={() => openEdit(p)} className="flex-1 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600">
+                          <Pencil className="mr-2 h-4 w-4" />
+                          Edit
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => requestDelete(p, selected.dateKey)}
+                          className="rounded-xl border-red-200 text-red-500 hover:bg-red-50"
+                        >
+                          <X className="mr-2 h-4 w-4" />
+                          Delete
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </>
+              )
+            })()}
         </DialogContent>
       </Dialog>
 
@@ -604,6 +700,35 @@ export const SharedCalendar: React.FC = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* All events of a day (month view) */}
+      <DayEventsDialog
+        dateKey={selectedDay}
+        occurrences={selectedDay ? occMap.get(selectedDay) ?? [] : []}
+        holidays={selectedDay ? holidayMap.get(selectedDay) ?? [] : []}
+        isDone={(occ) => isOccurrenceDone(occ.plan, occ.dateKey)}
+        onSelectOccurrence={(occ) => {
+          setSelectedDay(null)
+          openDetail(occ.plan, occ.dateKey)
+        }}
+        onSelectHoliday={(h) => {
+          setSelectedDay(null)
+          setSelectedHoliday(h)
+        }}
+        onAdd={(dk) => {
+          setSelectedDay(null)
+          openCreate({ date: dk })
+        }}
+        onClose={() => setSelectedDay(null)}
+      />
+
+      {/* Delete a recurring event: this / following / all */}
+      <DeleteRecurringDialog
+        open={!!deleteTarget}
+        title={deleteTarget?.plan.title}
+        onChoice={handleDeleteChoice}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </>
   )
 }

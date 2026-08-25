@@ -11,7 +11,7 @@
  *  evitar el corrimiento de día clásico de rrule.js.
  */
 
-import { RRule, rrulestr, type Options } from "rrule"
+import { RRule, RRuleSet, rrulestr, type Options } from "rrule"
 import { addDays, toDateKey } from "@/lib/date"
 import type { Plan } from "@/hooks/useSharedPlans"
 
@@ -127,11 +127,19 @@ export const configToRRule = (
 /** rrule weekday (0=MO..6=SU) → JS getDay (0=Dom..6=Sáb). */
 const rruleToJsDay = (n: number): number => (n === 6 ? 0 : n + 1)
 
+/** Obtiene la RRule base de una cadena (soporta RRULE simple o RRuleSet con EXDATE). */
+const baseRule = (rrule: string): RRule => {
+  const set = rrulestr(rrule, { forceset: true }) as RRuleSet
+  return set.rrules()[0]
+}
+
 export const rruleToConfig = (rrule: string | null): RecurrenceConfig => {
   const def = defaultRecurrence()
   if (!rrule) return def
   try {
-    const o = rrulestr(rrule).options
+    const rule = baseRule(rrule)
+    if (!rule) return def
+    const o = rule.options
     const interval = o.interval || 1
     const bw: number[] = Array.isArray(o.byweekday) ? o.byweekday : []
     const weekdays = bw.map(rruleToJsDay).sort((a, b) => a - b)
@@ -166,6 +174,59 @@ export const rruleToConfig = (rrule: string | null): RecurrenceConfig => {
   } catch (e) {
     console.error("No se pudo parsear el RRULE:", rrule, e)
     return def
+  }
+}
+
+/* ───────── edición de la serie (borrado por ocurrencia) ───────── */
+
+/** Fecha/hora exacta (UTC) de la ocurrencia que cae en `dateKey`, o null. */
+const occurrenceDate = (rrule: string, dateKey: string): Date | null => {
+  try {
+    const hits = rrulestr(rrule, { forceset: true }).between(
+      utcFromKey(dateKey),
+      utcFromKey(dateKey, true),
+      true,
+    )
+    return hits[0] ?? null
+  } catch {
+    return null
+  }
+}
+
+/** Excluye UNA ocurrencia (EXDATE) → "borrar solo este evento". */
+export const excludeOccurrence = (rrule: string, dateKey: string): string => {
+  const occ = occurrenceDate(rrule, dateKey)
+  if (!occ) return rrule
+  const parsed = rrulestr(rrule, { forceset: true }) as RRuleSet
+  const set = new RRuleSet()
+  parsed.rrules().forEach((r) => set.rrule(r))
+  parsed.exdates().forEach((d) => set.exdate(d))
+  set.exdate(occ)
+  return set.toString()
+}
+
+/** Corta la serie: elimina esta ocurrencia y todas las siguientes (UNTIL). */
+export const endSeriesBefore = (rrule: string, dateKey: string): string => {
+  const occ = occurrenceDate(rrule, dateKey)
+  if (!occ) return rrule
+  const parsed = rrulestr(rrule, { forceset: true }) as RRuleSet
+  const base = parsed.rrules()[0]
+  const opts: Partial<Options> = { ...base.origOptions }
+  opts.until = new Date(occ.getTime() - 60_000) // justo antes de esta ocurrencia
+  delete opts.count
+  const set = new RRuleSet()
+  set.rrule(new RRule(opts))
+  parsed.exdates().forEach((d) => set.exdate(d))
+  return set.toString()
+}
+
+/** ¿`dateKey` es la PRIMERA ocurrencia de la serie? (entonces borrar-futuro = borrar todo) */
+export const isFirstOccurrence = (rrule: string, dateKey: string): boolean => {
+  try {
+    const first = rrulestr(rrule, { forceset: true }).all((_, i) => i < 1)[0]
+    return first ? keyFromUTC(first) === dateKey : false
+  } catch {
+    return false
   }
 }
 
