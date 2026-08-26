@@ -72,6 +72,8 @@ export interface Profile {
   favorite_music?: string
   favorite_songs?: string[]
   favorite_movies?: string[]
+  /** idioma que el usuario está practicando ('en' | 'es') — Daily Surprise */
+  learning_language?: "en" | "es" | null
 }
 
 

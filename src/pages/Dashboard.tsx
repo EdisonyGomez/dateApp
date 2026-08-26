@@ -17,7 +17,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { DiaryEntry as DiaryEntryType } from "@/types"
 import { toast } from "sonner"
 import { Calendar, Heart, BookOpen, CalendarDays } from "lucide-react"
-import { LoveNoteModal } from "@/components/LoveNoteModal"
 import { HeartParticles } from "@/components/HeartParticles"
 import { RomanticBackground } from "@/components/RomanticBackground" // 👈 nuevo import
 
@@ -217,7 +216,6 @@ const { refreshEntries, refreshing } = useDiaryEntries()
       <RomanticBackground />
       <HeartParticles />
 
-      <LoveNoteModal />
       <Header onNewEntry={handleNewEntry} onShowPartnerLink={() => setShowPartnerLink(true)} />
 
       <div className="container mx-auto px-4 py-8 max-w-4xl relative z-10">
