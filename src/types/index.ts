@@ -74,6 +74,8 @@ export interface Profile {
   favorite_movies?: string[]
   /** idioma que el usuario está practicando ('en' | 'es') — Daily Surprise */
   learning_language?: "en" | "es" | null
+  /** tema visual del perfil ('china' | 'colombia' | 'default') */
+  profile_theme?: string | null
 }
 
 

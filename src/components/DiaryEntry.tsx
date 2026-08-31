@@ -242,14 +242,16 @@ export const DiaryEntry: React.FC<DiaryEntryProps> = ({ entry, onEdit, onDelete 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
+        whileHover={{ y: -6, rotateX: 3, transition: { type: "spring", stiffness: 300, damping: 20 } }}
         transition={{ duration: 0.4, ease: "easeOut" }}
         className={cn(
-          "relative flex flex-col max-w-[85%] sm:max-w-lg rounded-2xl shadow-2xl border backdrop-blur-md",
+          "relative flex flex-col max-w-[85%] sm:max-w-lg rounded-2xl shadow-2xl border backdrop-blur-md will-change-transform",
           isOwn
             ? "bg-gradient-to-br from-rose-50 via-pink-50 to-rose-100 text-rose-900 border-rose-200"
             : "bg-gradient-to-br from-indigo-50 via-blue-50 to-indigo-100 text-indigo-900 border-indigo-200",
         )}
         style={{
+          transformPerspective: 1000,
           backgroundImage: `
             radial-gradient(circle at 25% 25%, ${isOwn ? "rgba(244, 63, 94, 0.03)" : "rgba(99, 102, 241, 0.03)"} 0%, transparent 50%),
             radial-gradient(circle at 75% 75%, ${isOwn ? "rgba(236, 72, 153, 0.03)" : "rgba(79, 70, 229, 0.03)"} 0%, transparent 50%),

@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, lazy, Suspense } from "react"
 import { useAuth } from "@/contexts/AuthProvider"
 import { useDiaryEntries } from "@/hooks/useDiaryEntries"
 import { Header } from "@/components/Header"
@@ -19,6 +19,16 @@ import { toast } from "sonner"
 import { Calendar, Heart, BookOpen, CalendarDays } from "lucide-react"
 import { HeartParticles } from "@/components/HeartParticles"
 import { RomanticBackground } from "@/components/RomanticBackground" // 👈 nuevo import
+import { Reveal3D } from "@/components/motion/Reveal3D"
+import { ScrollTrigger } from "gsap/ScrollTrigger"
+import { useDeviceTier } from "@/lib/useDeviceTier"
+
+import { CanvasBoundary } from "@/components/three/CanvasBoundary"
+
+// Lazy: el bundle de three solo se descarga en tier 'full'
+const AmbientHearts = lazy(() =>
+  import("@/components/three/AmbientHearts").then((m) => ({ default: m.AmbientHearts })),
+)
 
 
 const ENTRIES_PAGE_SIZE = 6
@@ -32,6 +42,7 @@ const ENTRIES_PAGE_SIZE = 6
  */
 export const Dashboard: React.FC = () => {
   const { user, partner } = useAuth()
+  const tier = useDeviceTier()
   const { entries, loading, addEntry, updateEntry, deleteEntry, getEntryByDate } = useDiaryEntries()
   const [showForm, setShowForm] = useState(false)
   const [editingEntry, setEditingEntry] = useState<DiaryEntryType | null>(null)
@@ -76,6 +87,12 @@ const { refreshEntries, refreshing } = useDiaryEntries()
   useEffect(() => {
     setVisibleCount(ENTRIES_PAGE_SIZE)
   }, [searchQuery, selectedDate, filterMood, readingMode])
+
+  // Recalcular posiciones de los scroll-reveals cuando cambia el layout
+  useEffect(() => {
+    const id = requestAnimationFrame(() => ScrollTrigger.refresh())
+    return () => cancelAnimationFrame(id)
+  }, [visibleCount, readingMode])
 
 
   const today = normalizeDate(new Date())
@@ -212,9 +229,17 @@ const { refreshEntries, refreshing } = useDiaryEntries()
   // ───────────────── DASHBOARD PRINCIPAL ─────────────────
   return (
     <div className="relative min-h-screen overflow-hidden custom-scrollbar">
-      {/* Fondo romántico + partículas siempre presentes */}
+      {/* Fondo romántico + capa ambiental (3D en 'full', 2D en el resto) */}
       <RomanticBackground />
-      <HeartParticles />
+      {tier === "full" ? (
+        <CanvasBoundary fallback={<HeartParticles />}>
+          <Suspense fallback={<HeartParticles />}>
+            <AmbientHearts />
+          </Suspense>
+        </CanvasBoundary>
+      ) : (
+        <HeartParticles />
+      )}
 
       <Header onNewEntry={handleNewEntry} onShowPartnerLink={() => setShowPartnerLink(true)} />
 
@@ -387,9 +412,11 @@ const { refreshEntries, refreshing } = useDiaryEntries()
                             {formatFullDate(date)}
                           </h3>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 items-start">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 items-start" style={{ perspective: 1200 }}>
                           {entries.map((entry) => (
-                            <DiaryEntryComponent key={entry.id} entry={entry} onEdit={handleEditEntry} onDelete={handleDeleteEntry} />
+                            <Reveal3D key={entry.id}>
+                              <DiaryEntryComponent entry={entry} onEdit={handleEditEntry} onDelete={handleDeleteEntry} />
+                            </Reveal3D>
                           ))}
                         </div>
                       </div>
@@ -423,7 +450,9 @@ const { refreshEntries, refreshing } = useDiaryEntries()
                             <Card className="rounded-3xl shadow-xl border border-pink-100 bg-white/80 backdrop-blur-sm p-4">
                               <div className="text-sm font-semibold text-rose-600 mb-3">Tú</div>
                               {myEntry ? (
-                                <DiaryEntryComponent entry={myEntry} onEdit={handleEditEntry} onDelete={handleDeleteEntry} />
+                                <Reveal3D parallax={false}>
+                                  <DiaryEntryComponent entry={myEntry} onEdit={handleEditEntry} onDelete={handleDeleteEntry} />
+                                </Reveal3D>
                               ) : (
                                 <div className="text-sm text-pink-800/80">No escribiste este día.</div>
                               )}
@@ -434,7 +463,9 @@ const { refreshEntries, refreshing } = useDiaryEntries()
                               <div className="text-sm font-semibold text-rose-600 mb-3">Pareja</div>
                               {partner ? (
                                 partnerEntry ? (
-                                  <DiaryEntryComponent entry={partnerEntry} onEdit={handleEditEntry} onDelete={handleDeleteEntry} />
+                                  <Reveal3D parallax={false}>
+                                    <DiaryEntryComponent entry={partnerEntry} onEdit={handleEditEntry} onDelete={handleDeleteEntry} />
+                                  </Reveal3D>
                                 ) : (
                                   <div className="text-sm text-pink-800/80">Tu pareja no ha escrito este día.</div>
                                 )
