@@ -4,6 +4,7 @@ import { ListTodo, Repeat } from "lucide-react"
 import { formatKey, todayKey } from "@/lib/date"
 import type { Occurrence } from "@/lib/calendar/recurrence"
 import type { Holiday } from "@/lib/calendar/holidays"
+import { CategoryGlyph } from "./CategoryBadge"
 
 const HOUR_HEIGHT = 48 // px por hora
 const DEFAULT_COLOR = "#f43f5e"
@@ -134,6 +135,7 @@ export const TimeGridView: React.FC<TimeGridViewProps> = ({
                       className={`flex w-full items-center gap-1 truncate rounded-full px-2 py-0.5 text-[11px] text-white ${o.plan.completed ? "opacity-50 line-through" : ""}`}
                       style={{ backgroundColor: o.plan.color || DEFAULT_COLOR }}
                     >
+                      <CategoryGlyph category={o.plan.category} className="h-3 w-3 shrink-0" />
                       {o.plan.is_task && <ListTodo className="h-3 w-3 shrink-0" />}
                       <span className="truncate">{o.plan.title}</span>
                     </button>
@@ -194,6 +196,7 @@ export const TimeGridView: React.FC<TimeGridViewProps> = ({
                         }}
                       >
                         <span className="flex items-center gap-1 font-medium">
+                          <CategoryGlyph category={ev.occ.plan.category} className="h-3 w-3 shrink-0" />
                           {ev.occ.plan.is_task && <ListTodo className="h-3 w-3 shrink-0" />}
                           {ev.occ.recurring && <Repeat className="h-3 w-3 shrink-0" />}
                           <span className="truncate">{ev.occ.plan.title}</span>

@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button"
 import { formatKey } from "@/lib/date"
 import type { Occurrence } from "@/lib/calendar/recurrence"
 import type { Holiday } from "@/lib/calendar/holidays"
+import { CategoryTag } from "./CategoryBadge"
 
 const DEFAULT_COLOR = "#f43f5e"
 
@@ -97,6 +98,7 @@ export const DayEventsDialog: React.FC<DayEventsDialogProps> = ({
                         {occ.recurring && <Repeat className="h-3 w-3 text-rose-400" />}
                       </div>
                       <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                        <CategoryTag category={p.category} />
                         <span className="flex items-center gap-1">
                           <Clock className="h-3 w-3" />
                           {p.all_day ? "All day" : p.time || "No time"}

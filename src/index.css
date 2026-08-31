@@ -160,3 +160,52 @@
       0 6px 20px -8px color-mix(in srgb, var(--cal-accent, #f43f5e) 55%, transparent);
   }
 }
+
+/* Drift lento de los blobs ambientales (AmbientCanvas). GPU-friendly: solo transform. */
+@keyframes cal-drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  33% {
+    transform: translate3d(3%, 2%, 0) scale(1.06);
+  }
+  66% {
+    transform: translate3d(-2%, -1%, 0) scale(0.97);
+  }
+}
+.animate-cal-drift {
+  animation: cal-drift 24s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-cal-drift {
+    animation: none;
+  }
+}
+
+/* Celda "hoy" con vida: latido suave del glow + sparkle. Solo la de hoy anima. */
+@keyframes cal-breathe {
+  0%, 100% { box-shadow: 0 8px 20px -8px rgba(244, 63, 94, 0.5); }
+  50% { box-shadow: 0 12px 28px -6px rgba(244, 63, 94, 0.85); }
+}
+@keyframes cal-sparkle {
+  0%, 100% { opacity: 0.45; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+.cal-day-today {
+  animation: cal-breathe 3.4s ease-in-out infinite;
+}
+.cal-day-today::after {
+  content: "✨";
+  position: absolute;
+  top: 2px;
+  right: 5px;
+  font-size: 0.6rem;
+  z-index: 20;
+  pointer-events: none;
+  animation: cal-sparkle 2.8s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cal-day-today { animation: none; }
+  .cal-day-today::after { animation: none; }
+}

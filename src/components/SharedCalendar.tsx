@@ -20,9 +20,6 @@ import {
   MapPin,
   ChevronLeft,
   ChevronRight,
-  Heart,
-  Star,
-  Sparkles,
   X,
   Users,
   User,
@@ -46,6 +43,12 @@ import { AgendaView } from "@/components/calendar/AgendaView"
 import { TimeGridView } from "@/components/calendar/TimeGridView"
 import { DayEventsDialog } from "@/components/calendar/DayEventsDialog"
 import { DeleteRecurringDialog, type DeleteMode } from "@/components/calendar/DeleteRecurringDialog"
+import { CategoryBadge, CategoryTag } from "@/components/calendar/CategoryBadge"
+import { CATEGORY_BY_ID } from "@/lib/calendar/eventCategory"
+import { CalendarHeader } from "@/components/calendar/CalendarHeader"
+import { AmbientCanvas } from "@/components/calendar/AmbientCanvas"
+import { QuickAdd } from "@/components/calendar/QuickAdd"
+import { motion, AnimatePresence, MotionConfig } from "framer-motion"
 
 type View = "month" | "week" | "day" | "agenda"
 const VIEWS: { id: View; label: string }[] = [
@@ -76,8 +79,14 @@ const rangeLabel = (start: string, end: string | null): string => {
   return `${formatKey(s, { day: "numeric", month: "short" })} – ${formatKey(e, { day: "numeric", month: "short", year: "numeric" })}`
 }
 
-const DEFAULT_COLOR = "#f43f5e"
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+
+/** Slide direccional del grid al cambiar de mes (custom = dirección de navegación). */
+const monthVariants = {
+  enter: (d: number) => ({ opacity: 0, x: d > 0 ? 36 : d < 0 ? -36 : 0 }),
+  center: { opacity: 1, x: 0 },
+  exit: (d: number) => ({ opacity: 0, x: d > 0 ? -36 : d < 0 ? 36 : 0 }),
+}
 
 /** Agrupa ocurrencias en secciones: Today / Tomorrow / This week / por mes. */
 const groupUpcoming = (occs: Occurrence[]): { label: string; items: Occurrence[] }[] => {
@@ -100,7 +109,7 @@ const groupUpcoming = (occs: Occurrence[]): { label: string; items: Occurrence[]
 }
 
 export const SharedCalendar: React.FC = () => {
-  const { user, partner } = useAuth()
+  const { user, partner, profile } = useAuth()
   const notif = useNotifications()
 
   const onPartnerInsert = useCallback(
@@ -147,6 +156,7 @@ export const SharedCalendar: React.FC = () => {
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<{ plan: Plan; dateKey: string } | null>(null)
   const [currentDate, setCurrentDate] = useState(new Date())
+  const [navDir, setNavDir] = useState(0)
   const [selectedHoliday, setSelectedHoliday] = useState<Holiday | null>(null)
 
   const openDetail = (plan: Plan, dateKey: string) => setSelected({ plan, dateKey })
@@ -214,6 +224,10 @@ export const SharedCalendar: React.FC = () => {
     return map
   }, [first, last])
   const upcoming = useMemo(() => upcomingOccurrences(plans, todayKey(), 365), [plans])
+  const todayOccs = useMemo(() => {
+    const tk = todayKey()
+    return upcoming.filter((o) => o.dateKey === tk)
+  }, [upcoming])
 
   const weekDays = useMemo(
     () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
@@ -221,12 +235,14 @@ export const SharedCalendar: React.FC = () => {
   )
 
   /* ───────── navegación adaptativa ───────── */
-  const shift = (dir: number) =>
+  const shift = (dir: number) => {
+    setNavDir(dir)
     setCurrentDate((d) => {
       if (view === "month") return new Date(d.getFullYear(), d.getMonth() + dir, 1)
       const step = view === "week" ? 7 : 1
       return new Date(d.getFullYear(), d.getMonth(), d.getDate() + dir * step)
     })
+  }
 
   const title =
     view === "month"
@@ -287,7 +303,10 @@ export const SharedCalendar: React.FC = () => {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setCurrentDate(new Date())}
+            onClick={() => {
+              setNavDir(0)
+              setCurrentDate(new Date())
+            }}
             className="rounded-full border-pink-200 px-4 text-rose-600 hover:bg-pink-50"
           >
             Today
@@ -297,19 +316,31 @@ export const SharedCalendar: React.FC = () => {
 
       {/* switcher de vistas */}
       <div className="grid grid-cols-4 gap-1 rounded-2xl bg-pink-100/60 p-1">
-        {VIEWS.map((v) => (
-          <button
-            key={v.id}
-            type="button"
-            onClick={() => setView(v.id)}
-            className={`rounded-xl py-1.5 text-sm font-semibold transition-colors ${
-              view === v.id ? "bg-white text-rose-600 shadow-sm" : "text-gray-500 hover:text-rose-500"
-            }`}
-          >
-            {v.label}
-          </button>
-        ))}
+        {VIEWS.map((v) => {
+          const active = view === v.id
+          return (
+            <button
+              key={v.id}
+              type="button"
+              onClick={() => setView(v.id)}
+              className="relative rounded-xl py-1.5 text-sm font-semibold"
+            >
+              {active && (
+                <motion.span
+                  layoutId="cal-view-active"
+                  className="absolute inset-0 rounded-xl bg-white shadow-sm"
+                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                />
+              )}
+              <span className={`relative z-10 ${active ? "text-rose-600" : "text-gray-500 hover:text-rose-500"}`}>
+                {v.label}
+              </span>
+            </button>
+          )
+        })}
       </div>
+
+      <QuickAdd onAdd={addPlan} onMore={() => openCreate(null)} />
 
       <Button
         onClick={() => openCreate(null)}
@@ -334,56 +365,66 @@ export const SharedCalendar: React.FC = () => {
       const dayHolidays = holidayMap.get(dateStr) ?? []
       const isToday =
         today.getDate() === day && today.getMonth() === currentMonth && today.getFullYear() === currentYear
+      const wday = new Date(currentYear, currentMonth, day).getDay()
+      const isWeekend = wday === 0 || wday === 6
+      // glow del día = color de la categoría del primer evento (da vida + información)
+      const glowColor = dayOccs[0] ? CATEGORY_BY_ID[dayOccs[0].plan.category].color : null
 
       cells.push(
         <div
           key={day}
           onClick={() => setSelectedDay(dateStr)}
-          className={`h-24 cursor-pointer overflow-hidden rounded-xl border p-1.5 transition-all duration-300 hover:ring-2 hover:ring-rose-200 ${
-            isToday ? "border-rose-300 bg-gradient-to-br from-rose-100 to-pink-100" : "border-pink-100 bg-white hover:bg-pink-50"
+          className={`relative flex h-24 cursor-pointer flex-col items-center justify-center gap-1.5 overflow-hidden rounded-xl border p-1.5 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md ${
+            isToday
+              ? "cal-day-today border-rose-300 bg-gradient-to-br from-rose-100 to-pink-100"
+              : isWeekend
+                ? "border-pink-100 bg-gradient-to-br from-rose-50/70 to-pink-50/50 hover:bg-pink-50"
+                : "border-pink-100 bg-white hover:bg-pink-50"
           }`}
         >
-          <div className={`mb-1 text-sm font-semibold ${isToday ? "text-rose-700" : "text-gray-700"}`}>{day}</div>
-          <div className="space-y-0.5">
-            {dayHolidays.map((hol, i) => (
-              <button
-                key={`h-${i}`}
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setSelectedHoliday(hol)
-                }}
-                className={`flex w-full items-center gap-1 truncate rounded px-1.5 py-0.5 text-[10px] font-medium ${
-                  hol.country === "CO" ? "bg-amber-100 text-amber-800 hover:bg-amber-200" : "bg-blue-100 text-blue-800 hover:bg-blue-200"
-                }`}
-                title={`${hol.flag} ${hol.name}`}
-              >
-                <span>{hol.flag}</span>
-                <span className="truncate">{hol.name}</span>
-              </button>
-            ))}
-            {dayOccs.slice(0, dayHolidays.length > 0 ? 1 : 2).map((occ, i) => {
-              const p = occ.plan
-              return (
-                <div
-                  key={`${p.id}-${i}`}
-                  className={`flex cursor-pointer items-center gap-1 truncate rounded-full px-2 py-0.5 text-xs text-white ${p.completed ? "opacity-50 line-through" : ""}`}
-                  style={{ backgroundColor: p.color || DEFAULT_COLOR }}
-                  title={`${p.title}${p.time ? ` · ${p.time}` : ""}`}
+          {glowColor && !isToday && (
+            <div
+              className="pointer-events-none absolute inset-x-0 bottom-0 h-2/3"
+              style={{ background: `radial-gradient(120% 90% at 50% 130%, ${glowColor}55, transparent 70%)` }}
+            />
+          )}
+
+          {/* feriados: banderita en la esquina → abre el detalle del feriado */}
+          {dayHolidays.length > 0 && (
+            <div className="absolute right-1 top-1 z-20 flex gap-0.5">
+              {dayHolidays.slice(0, 2).map((hol, i) => (
+                <button
+                  key={`h-${i}`}
+                  type="button"
                   onClick={(e) => {
                     e.stopPropagation()
-                    openDetail(p, dateStr)
+                    setSelectedHoliday(hol)
                   }}
+                  className="text-xs leading-none transition hover:scale-125"
+                  title={`${hol.flag} ${hol.name}`}
                 >
-                  {p.is_task ? <ListTodo className="h-3 w-3 shrink-0" /> : occ.recurring ? <Repeat className="h-3 w-3 shrink-0" /> : null}
-                  <span className="truncate">{p.title}</span>
-                </div>
+                  {hol.flag}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <span className={`relative z-10 text-base font-bold ${isToday ? "text-rose-700" : "text-gray-700"}`}>{day}</span>
+
+          {/* puntos de eventos, coloreados por categoría */}
+          <div className="relative z-10 flex h-2 items-center justify-center gap-1">
+            {dayOccs.slice(0, 5).map((occ, i) => {
+              const c = CATEGORY_BY_ID[occ.plan.category].color
+              return (
+                <span
+                  key={`${occ.plan.id}-${i}`}
+                  className={`h-1.5 w-1.5 rounded-full ${occ.plan.completed ? "opacity-40" : ""}`}
+                  style={{ backgroundColor: c, boxShadow: `0 0 5px ${c}` }}
+                />
               )
             })}
-            {dayOccs.length > (dayHolidays.length > 0 ? 1 : 2) && (
-              <div className="text-[10px] font-medium text-rose-500">
-                +{dayOccs.length - (dayHolidays.length > 0 ? 1 : 2)} more
-              </div>
+            {dayOccs.length > 5 && (
+              <span className="text-[9px] font-semibold text-rose-500">+{dayOccs.length - 5}</span>
             )}
           </div>
         </div>,
@@ -421,7 +462,7 @@ export const SharedCalendar: React.FC = () => {
       <div key={`${p.id}-${occ.dateKey}`} className="group rounded-2xl border border-pink-100 bg-white/70 p-4 shadow-sm backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
         <div className="flex items-start justify-between gap-3">
           <div className="flex flex-1 items-start gap-3">
-            <span className="mt-1.5 h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: p.color || DEFAULT_COLOR }} />
+            <CategoryBadge category={p.category} size="md" className="mt-0.5" />
             {p.is_task && (
               <Checkbox checked={done} onCheckedChange={() => toggleOccurrence(p, occ.dateKey)} className="mt-0.5" aria-label="Complete task" />
             )}
@@ -433,6 +474,7 @@ export const SharedCalendar: React.FC = () => {
               </h5>
               {p.description && <p className="mb-2 text-sm text-gray-600">{p.description}</p>}
               <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
+                <CategoryTag category={p.category} />
                 <span className="flex items-center gap-1">
                   {multi ? <CalendarRange className="h-3 w-3" /> : <Calendar className="h-3 w-3" />}
                   {occ.recurring ? formatKey(occ.dateKey, { day: "numeric", month: "short", year: "numeric" }) : rangeLabel(p.date, p.end_date)}
@@ -522,11 +564,29 @@ export const SharedCalendar: React.FC = () => {
   }
 
   const renderBody = () => (
+    <MotionConfig reducedMotion="user">
     <div className="space-y-6">
+      <CalendarHeader
+        me={{ name: profile?.name || user?.email || "You", avatarUrl: profile?.avatar_url }}
+        partner={partner ? { name: partner.name } : null}
+        todayOccs={todayOccs}
+      />
       {renderToolbar()}
       {view === "month" && (
         <>
-          {renderMonthGrid()}
+          <AnimatePresence mode="wait" custom={navDir} initial={false}>
+            <motion.div
+              key={`${currentYear}-${currentMonth}`}
+              custom={navDir}
+              variants={monthVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ duration: 0.24, ease: [0.2, 0.7, 0.2, 1] }}
+            >
+              {renderMonthGrid()}
+            </motion.div>
+          </AnimatePresence>
           {renderUpcoming()}
         </>
       )}
@@ -544,26 +604,13 @@ export const SharedCalendar: React.FC = () => {
         <AgendaView occurrences={upcoming} onSelectPlan={(occ) => openDetail(occ.plan, occ.dateKey)} />
       )}
     </div>
-  )
-
-  const ParticleBackground = () => (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden opacity-30">
-      {[...Array(8)].map((_, i) => (
-        <Heart key={`h-${i}`} className="absolute animate-pulse text-pink-300/40" style={{ left: `${Math.random() * 100}%`, top: `${Math.random() * 100}%`, fontSize: `${Math.random() * 15 + 10}px`, animationDelay: `${Math.random() * 5}s`, animationDuration: `${Math.random() * 3 + 2}s` }} />
-      ))}
-      {[...Array(6)].map((_, i) => (
-        <Star key={`s-${i}`} className="absolute animate-pulse text-yellow-300/30" style={{ left: `${Math.random() * 100}%`, top: `${Math.random() * 100}%`, fontSize: `${Math.random() * 12 + 8}px`, animationDelay: `${Math.random() * 4}s`, animationDuration: `${Math.random() * 2 + 1}s` }} />
-      ))}
-      {[...Array(10)].map((_, i) => (
-        <Sparkles key={`sp-${i}`} className="absolute animate-pulse text-pink-400/30" style={{ left: `${Math.random() * 100}%`, top: `${Math.random() * 100}%`, fontSize: `${Math.random() * 14 + 10}px`, animationDelay: `${Math.random() * 6}s`, animationDuration: `${Math.random() * 4 + 2}s` }} />
-      ))}
-    </div>
+    </MotionConfig>
   )
 
   if (loading && plans.length === 0) {
     return (
       <Card className="relative overflow-hidden rounded-3xl border border-pink-100 bg-white/80 p-8 shadow-xl backdrop-blur-sm">
-        <ParticleBackground />
+        <AmbientCanvas />
         <CardContent className="relative z-10 p-0">
           <div className="flex flex-col items-center justify-center py-12">
             <div className="relative">
@@ -580,7 +627,7 @@ export const SharedCalendar: React.FC = () => {
   return (
     <>
       <Card className="relative overflow-hidden rounded-3xl border border-pink-100 bg-white/80 p-6 shadow-xl backdrop-blur-sm sm:p-8">
-        <ParticleBackground />
+        <AmbientCanvas />
         <CardContent className="relative z-10 p-0">
           {showForm ? (
             <PlanForm initial={editingPlan} prefill={prefill} onSubmit={handleFormSubmit} onCancel={closeForm} />
@@ -602,13 +649,14 @@ export const SharedCalendar: React.FC = () => {
                 <>
                   <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 text-2xl">
-                      <span className="h-4 w-4 shrink-0 rounded-full" style={{ backgroundColor: p.color || DEFAULT_COLOR }} />
+                      <CategoryBadge category={p.category} size="sm" />
                       {p.is_task && <ListTodo className="h-5 w-5 text-violet-500" />}
                       <span className={done ? "text-gray-400 line-through" : ""}>{p.title}</span>
                     </DialogTitle>
                     <DialogDescription className="sr-only">Plan details</DialogDescription>
                   </DialogHeader>
                   <div className="space-y-2 text-sm text-gray-600">
+                    <CategoryTag category={p.category} />
                     <p className="flex items-center gap-2">
                       <Calendar className="h-4 w-4 text-rose-400" />
                       {p.rrule

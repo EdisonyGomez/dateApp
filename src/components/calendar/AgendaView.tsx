@@ -2,6 +2,7 @@ import type React from "react"
 import { Calendar, Clock, MapPin, Bell, ListTodo, Repeat } from "lucide-react"
 import { formatKey, todayKey } from "@/lib/date"
 import type { Occurrence } from "@/lib/calendar/recurrence"
+import { CategoryTag } from "./CategoryBadge"
 
 const DEFAULT_COLOR = "#f43f5e"
 
@@ -72,6 +73,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ occurrences, onSelectPla
                       {occ.recurring && <Repeat className="h-3.5 w-3.5 text-rose-400" />}
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-gray-500">
+                      <CategoryTag category={p.category} />
                       <span className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
                         {p.all_day ? "All day" : p.time || "No time"}
