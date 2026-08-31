@@ -12,6 +12,7 @@ import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/AuthProvider"
 import { toast } from "sonner"
 import { excludeOccurrence, endSeriesBefore, isFirstOccurrence } from "@/lib/calendar/recurrence"
+import { categoryFromColor, type CategoryId } from "@/lib/calendar/eventCategory"
 
 export interface Plan {
   id: string
@@ -37,6 +38,8 @@ export interface Plan {
   end_time: string | null
   /** color/categoría (hex) o null = default */
   color: string | null
+  /** id de categoría semántica (couple|personal|work|…). Siempre poblado por normalize(). */
+  category: CategoryId
   created_by: string
   created_by_name?: string
   plan_type: "individual" | "together"
@@ -57,6 +60,7 @@ export interface NewPlanInput {
   all_day: boolean
   end_time: string | null
   color: string | null
+  category: CategoryId
   plan_type: "individual" | "together"
 }
 
@@ -76,6 +80,7 @@ interface PlanRow {
   all_day?: boolean | null
   end_time?: string | null
   color?: string | null
+  category?: string | null
   created_by: string
   plan_type?: "individual" | "together" | null
   created_at: string
@@ -98,6 +103,8 @@ const normalize = (row: PlanRow): Plan => ({
   all_day: row.all_day ?? false,
   end_time: row.end_time ?? null,
   color: row.color ?? null,
+  // columna real primero; si la migración aún no corrió, se deriva del color
+  category: (row.category as CategoryId | undefined) ?? categoryFromColor(row.color).id,
   created_by: row.created_by,
   created_by_name: row.profiles?.name || "Desconocido",
   plan_type: row.plan_type ?? "individual",
@@ -247,6 +254,7 @@ export function useSharedPlans({ onPartnerInsert }: UseSharedPlansOptions = {}) 
             all_day: input.all_day,
             end_time: input.end_time,
             color: input.color,
+            category: input.category,
             plan_type: input.plan_type,
             created_by: user.id,
           },
@@ -293,6 +301,7 @@ export function useSharedPlans({ onPartnerInsert }: UseSharedPlansOptions = {}) 
           all_day: input.all_day,
           end_time: input.end_time,
           color: input.color,
+          category: input.category,
           plan_type: input.plan_type,
         })
         .eq("id", id)

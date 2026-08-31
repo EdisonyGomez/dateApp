@@ -11,7 +11,6 @@ import {
   ListTodo,
   CalendarHeart,
   Save,
-  Check,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -30,6 +29,7 @@ import { todayKey, toDateKey } from "@/lib/date"
 import { configToRRule, defaultRecurrence, rruleToConfig } from "@/lib/calendar/recurrence"
 import { RecurrenceField } from "./RecurrenceField"
 import type { NewPlanInput, Plan } from "@/hooks/useSharedPlans"
+import { CATEGORIES, CATEGORY_BY_ID, DEFAULT_CATEGORY_ID } from "@/lib/calendar/eventCategory"
 
 interface PlanFormProps {
   onSubmit: (input: NewPlanInput) => Promise<boolean>
@@ -47,15 +47,6 @@ const REMINDER_OPTIONS = [
   { label: "30 minutes before", value: "30" },
   { label: "1 hour before", value: "60" },
   { label: "1 day before", value: "1440" },
-]
-
-const EVENT_COLORS = [
-  { label: "Rose", value: "#f43f5e" },
-  { label: "Peach", value: "#fb7185" },
-  { label: "Violet", value: "#8b5cf6" },
-  { label: "Blue", value: "#3b82f6" },
-  { label: "Green", value: "#10b981" },
-  { label: "Amber", value: "#f59e0b" },
 ]
 
 /** Control segmentado tipo pill (Evento/Tarea, Individual/Juntos). */
@@ -111,7 +102,7 @@ export const PlanForm: React.FC<PlanFormProps> = ({ onSubmit, onCancel, initial,
           is_task: initial.is_task,
           all_day: initial.all_day,
           reminder: initial.reminder_minutes === null ? "none" : String(initial.reminder_minutes),
-          color: initial.color || EVENT_COLORS[0].value,
+          category: initial.category,
           plan_type: initial.plan_type,
         }
       : {
@@ -125,7 +116,7 @@ export const PlanForm: React.FC<PlanFormProps> = ({ onSubmit, onCancel, initial,
           is_task: false,
           all_day: false,
           reminder: "0", // recordatorio ON por defecto; el usuario elige cuándo
-          color: EVENT_COLORS[0].value,
+          category: DEFAULT_CATEGORY_ID,
           plan_type: "individual" as "individual" | "together",
         },
   )
@@ -149,6 +140,7 @@ export const PlanForm: React.FC<PlanFormProps> = ({ onSubmit, onCancel, initial,
     }
 
     const time = form.all_day ? null : form.time || null
+    const cat = CATEGORY_BY_ID[form.category]
     const input: NewPlanInput = {
       title: form.title.trim(),
       description: form.description.trim(),
@@ -161,7 +153,8 @@ export const PlanForm: React.FC<PlanFormProps> = ({ onSubmit, onCancel, initial,
       is_task: form.is_task,
       reminder_minutes: form.reminder === "none" ? null : Number(form.reminder),
       rrule: configToRRule(recur, form.date, time),
-      color: form.color,
+      color: cat.color,
+      category: cat.id,
       plan_type: form.plan_type,
     }
 
@@ -295,24 +288,40 @@ export const PlanForm: React.FC<PlanFormProps> = ({ onSubmit, onCancel, initial,
           </Select>
         </Field>
 
-        {/* Color */}
-        <Field label="Color label">
-          <div className="flex gap-2">
-            {EVENT_COLORS.map((c) => (
-              <button
-                key={c.value}
-                type="button"
-                onClick={() => set({ color: c.value })}
-                aria-label={c.label}
-                className={cn(
-                  "grid h-8 w-8 place-items-center rounded-full transition hover:scale-110",
-                  form.color === c.value && "ring-2 ring-offset-2 ring-gray-400",
-                )}
-                style={{ backgroundColor: c.value }}
-              >
-                {form.color === c.value && <Check className="h-4 w-4 text-white" />}
-              </button>
-            ))}
+        {/* Categoría */}
+        <Field label="Category">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {CATEGORIES.map((c) => {
+              const Icon = c.icon
+              const active = form.category === c.id
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => set({ category: c.id })}
+                  aria-pressed={active}
+                  className={cn(
+                    "flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition",
+                    active
+                      ? "shadow-sm"
+                      : "border-pink-100 bg-white/60 text-gray-500 hover:border-pink-200 hover:bg-pink-50/60",
+                  )}
+                  style={
+                    active
+                      ? { borderColor: c.color, backgroundColor: c.soft, color: c.color }
+                      : undefined
+                  }
+                >
+                  <span
+                    className="grid h-6 w-6 shrink-0 place-items-center rounded-lg"
+                    style={{ backgroundColor: active ? c.color : `${c.color}22`, color: active ? "#fff" : c.color }}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                  </span>
+                  <span className="truncate">{c.label}</span>
+                </button>
+              )
+            })}
           </div>
         </Field>
 

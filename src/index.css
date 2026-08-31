@@ -121,3 +121,42 @@
   );
   background-size: 100% 32px;
 }
+
+/* ───────────────────────────────────────────────
+ *  Calendar · capa premium (light) — Fase 1
+ *  Tokens aditivos. La categoría (color/icono) vive en
+ *  src/lib/calendar/eventCategory.ts (fuente de verdad en JS);
+ *  acá solo van superficies y elevación reutilizables.
+ * ─────────────────────────────────────────────── */
+@layer base {
+  :root {
+    /* superficie de vidrio sobre el fondo rosa del dashboard */
+    --cal-glass-bg: rgba(255, 255, 255, 0.72);
+    --cal-glass-border: rgba(244, 114, 182, 0.16);
+    --cal-elev-1: 0 1px 2px rgba(190, 24, 93, 0.06),
+      0 8px 24px -12px rgba(190, 24, 93, 0.18);
+    --cal-elev-2: 0 2px 4px rgba(190, 24, 93, 0.08),
+      0 18px 40px -16px rgba(190, 24, 93, 0.28);
+    /* radios coherentes con el tono glassy */
+    --cal-r: 1rem; /* 16px */
+    --cal-r-lg: 1.25rem; /* 20px */
+  }
+}
+
+@layer components {
+  /* superficie de vidrio premium; el glow de categoría se pasa por --cal-accent */
+  .cal-glass {
+    background: var(--cal-glass-bg);
+    border: 1px solid var(--cal-glass-border);
+    border-radius: var(--cal-r);
+    box-shadow: var(--cal-elev-1);
+    backdrop-filter: blur(12px) saturate(1.15);
+    -webkit-backdrop-filter: blur(12px) saturate(1.15);
+  }
+
+  /* halo suave en el color de la categoría; setear --cal-accent inline */
+  .cal-accent-ring {
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--cal-accent, #f43f5e) 40%, transparent),
+      0 6px 20px -8px color-mix(in srgb, var(--cal-accent, #f43f5e) 55%, transparent);
+  }
+}
