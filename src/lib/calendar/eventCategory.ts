@@ -24,6 +24,11 @@ import {
   Cake,
   Plane,
   HeartHandshake,
+  GraduationCap,
+  HeartPulse,
+  Waves,
+  Palmtree,
+  HandHeart,
   type LucideIcon,
 } from "lucide-react"
 
@@ -35,6 +40,11 @@ export type CategoryId =
   | "birthday"
   | "trip"
   | "anniversary"
+  | "study"
+  | "health"
+  | "sports"
+  | "break"
+  | "volunteer"
 
 export interface EventCategory {
   id: CategoryId
@@ -62,6 +72,11 @@ export const CATEGORIES: EventCategory[] = [
   { id: "birthday",    label: "Birthday",    color: "#f59e0b", soft: "#fef3c7", icon: Cake,           emoji: "🎂" },
   { id: "trip",        label: "Trip",        color: "#10b981", soft: "#d1fae5", icon: Plane,          emoji: "✈️" },
   { id: "anniversary", label: "Anniversary", color: "#d946ef", soft: "#fae8ff", icon: HeartHandshake, emoji: "💞" },
+  { id: "study",       label: "Study",       color: "#7c3aed", soft: "#ede9fe", icon: GraduationCap,  emoji: "📚" },
+  { id: "health",      label: "Health",      color: "#0d9488", soft: "#ccfbf1", icon: HeartPulse,     emoji: "🩺" },
+  { id: "sports",      label: "Sports",      color: "#0891b2", soft: "#cffafe", icon: Waves,          emoji: "🏊" },
+  { id: "break",       label: "Break",       color: "#ca8a04", soft: "#fef9c3", icon: Palmtree,       emoji: "🌴" },
+  { id: "volunteer",   label: "Volunteer",   color: "#db2777", soft: "#fce7f3", icon: HandHeart,      emoji: "🤝" },
 ]
 
 export const CATEGORY_BY_ID: Record<CategoryId, EventCategory> = CATEGORIES.reduce(
@@ -86,6 +101,11 @@ const COLOR_TO_CATEGORY: Record<string, CategoryId> = {
   "#f59e0b": "birthday",
   "#10b981": "trip",
   "#d946ef": "anniversary",
+  "#7c3aed": "study",
+  "#0d9488": "health",
+  "#0891b2": "sports",
+  "#ca8a04": "break",
+  "#db2777": "volunteer",
   // legacy EVENT_COLORS que no coinciden con un canónico
   "#fb7185": "personal", // peach
   "#8b5cf6": "anniversary", // violet

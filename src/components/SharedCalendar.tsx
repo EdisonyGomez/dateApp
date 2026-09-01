@@ -47,7 +47,6 @@ import { CategoryBadge, CategoryTag } from "@/components/calendar/CategoryBadge"
 import { CATEGORY_BY_ID } from "@/lib/calendar/eventCategory"
 import { CalendarHeader } from "@/components/calendar/CalendarHeader"
 import { AmbientCanvas } from "@/components/calendar/AmbientCanvas"
-import { QuickAdd } from "@/components/calendar/QuickAdd"
 import { motion, AnimatePresence, MotionConfig } from "framer-motion"
 
 type View = "month" | "week" | "day" | "agenda"
@@ -224,10 +223,6 @@ export const SharedCalendar: React.FC = () => {
     return map
   }, [first, last])
   const upcoming = useMemo(() => upcomingOccurrences(plans, todayKey(), 365), [plans])
-  const todayOccs = useMemo(() => {
-    const tk = todayKey()
-    return upcoming.filter((o) => o.dateKey === tk)
-  }, [upcoming])
 
   const weekDays = useMemo(
     () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
@@ -256,12 +251,13 @@ export const SharedCalendar: React.FC = () => {
   /* ───────── toolbar ───────── */
   const renderToolbar = () => (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="font-quick flex items-center gap-2 text-2xl font-bold text-gray-800">
-          <CalendarDays className="h-7 w-7 text-rose-500" />
-          <span className="capitalize">{title}</span>
-        </h3>
-        <div className="flex items-center gap-2">
+      {/* fila única: identidad de la pareja + navegación del mes */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <CalendarHeader
+          me={{ name: profile?.name || user?.email || "You", avatarUrl: profile?.avatar_url }}
+          partner={partner ? { name: partner.name } : null}
+        />
+        <div className="flex items-center gap-1.5">
           {notif.supported && (
             <Button
               variant="outline"
@@ -280,7 +276,7 @@ export const SharedCalendar: React.FC = () => {
               )}
             </Button>
           )}
-          {view !== "agenda" && (
+          {view !== "agenda" ? (
             <>
               <Button
                 variant="outline"
@@ -290,6 +286,9 @@ export const SharedCalendar: React.FC = () => {
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
+              <span className="font-quick min-w-[7rem] text-center text-lg font-bold capitalize text-gray-800">
+                {title}
+              </span>
               <Button
                 variant="outline"
                 size="icon"
@@ -298,24 +297,26 @@ export const SharedCalendar: React.FC = () => {
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setNavDir(0)
+                  setCurrentDate(new Date())
+                }}
+                className="rounded-full border-pink-200 px-3 text-rose-600 hover:bg-pink-50"
+              >
+                Today
+              </Button>
             </>
+          ) : (
+            <span className="font-quick text-lg font-bold text-gray-800">Agenda</span>
           )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setNavDir(0)
-              setCurrentDate(new Date())
-            }}
-            className="rounded-full border-pink-200 px-4 text-rose-600 hover:bg-pink-50"
-          >
-            Today
-          </Button>
         </div>
       </div>
 
-      {/* switcher de vistas */}
-      <div className="grid grid-cols-4 gap-1 rounded-2xl bg-pink-100/60 p-1">
+      {/* switcher de vistas — pill rosa degradado */}
+      <div className="grid grid-cols-4 gap-1 rounded-2xl bg-pink-100/50 p-1 shadow-inner">
         {VIEWS.map((v) => {
           const active = view === v.id
           return (
@@ -328,19 +329,17 @@ export const SharedCalendar: React.FC = () => {
               {active && (
                 <motion.span
                   layoutId="cal-view-active"
-                  className="absolute inset-0 rounded-xl bg-white shadow-sm"
+                  className="absolute inset-0 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 shadow-md"
                   transition={{ type: "spring", stiffness: 400, damping: 30 }}
                 />
               )}
-              <span className={`font-quick relative z-10 ${active ? "text-rose-600" : "text-gray-500 hover:text-rose-500"}`}>
+              <span className={`font-quick relative z-10 ${active ? "text-white" : "text-gray-500 hover:text-rose-500"}`}>
                 {v.label}
               </span>
             </button>
           )
         })}
       </div>
-
-      <QuickAdd onAdd={addPlan} onMore={() => openCreate(null)} />
 
       <Button
         onClick={() => openCreate(null)}
@@ -374,18 +373,18 @@ export const SharedCalendar: React.FC = () => {
         <div
           key={day}
           onClick={() => setSelectedDay(dateStr)}
-          className={`relative flex h-24 cursor-pointer flex-col items-center justify-center gap-1.5 overflow-hidden rounded-xl border p-1.5 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md ${
+          className={`group relative flex h-24 cursor-pointer flex-col items-center justify-center gap-1.5 overflow-hidden rounded-2xl border p-1.5 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md ${
             isToday
               ? "cal-day-today border-rose-300 bg-gradient-to-br from-rose-100 to-pink-100"
               : isWeekend
-                ? "border-pink-100 bg-gradient-to-br from-rose-50/70 to-pink-50/50 hover:bg-pink-50"
-                : "border-pink-100 bg-white hover:bg-pink-50"
+                ? "border-pink-100/70 bg-gradient-to-br from-rose-50 to-pink-50/60 hover:from-rose-100/70"
+                : "border-pink-100/70 bg-gradient-to-br from-white to-pink-50/40 hover:from-pink-50"
           }`}
         >
           {glowColor && !isToday && (
             <div
-              className="pointer-events-none absolute inset-x-0 bottom-0 h-2/3"
-              style={{ background: `radial-gradient(120% 90% at 50% 130%, ${glowColor}55, transparent 70%)` }}
+              className="pointer-events-none absolute inset-0 opacity-60 transition-opacity duration-300 group-hover:opacity-90"
+              style={{ background: `radial-gradient(circle at 50% 120%, ${glowColor}, transparent 62%)` }}
             />
           )}
 
@@ -400,7 +399,9 @@ export const SharedCalendar: React.FC = () => {
                     e.stopPropagation()
                     setSelectedHoliday(hol)
                   }}
-                  className="text-xs leading-none transition hover:scale-125"
+                  className={`rounded px-1 text-[9px] font-bold uppercase leading-tight shadow-sm transition hover:scale-110 ${
+                    hol.country === "CO" ? "bg-amber-200 text-amber-800" : "bg-blue-200 text-blue-800"
+                  }`}
                   title={`${hol.flag} ${hol.name}`}
                 >
                   {hol.flag}
@@ -440,7 +441,7 @@ export const SharedCalendar: React.FC = () => {
             </div>
           ))}
         </div>
-        <div className="grid grid-cols-7 gap-1.5">{cells}</div>
+        <div className="grid grid-cols-7 gap-2 rounded-3xl bg-gradient-to-br from-white/40 to-pink-50/20 p-2">{cells}</div>
         <div className="flex items-center justify-center gap-4 text-xs text-gray-500">
           <span className="flex items-center gap-1">
             <span className="h-3 w-3 rounded bg-amber-100" /> 🇨🇴 Colombia holiday
@@ -573,11 +574,6 @@ export const SharedCalendar: React.FC = () => {
   const renderBody = () => (
     <MotionConfig reducedMotion="user">
     <div className="space-y-6">
-      <CalendarHeader
-        me={{ name: profile?.name || user?.email || "You", avatarUrl: profile?.avatar_url }}
-        partner={partner ? { name: partner.name } : null}
-        todayOccs={todayOccs}
-      />
       {renderToolbar()}
       {view === "month" && (
         <>
