@@ -44,7 +44,7 @@ import { TimeGridView } from "@/components/calendar/TimeGridView"
 import { DayEventsDialog } from "@/components/calendar/DayEventsDialog"
 import { DeleteRecurringDialog, type DeleteMode } from "@/components/calendar/DeleteRecurringDialog"
 import { CategoryBadge, CategoryTag } from "@/components/calendar/CategoryBadge"
-import { CATEGORY_BY_ID } from "@/lib/calendar/eventCategory"
+import { categoryOf } from "@/lib/calendar/eventCategory"
 import { CalendarHeader } from "@/components/calendar/CalendarHeader"
 import { AmbientCanvas } from "@/components/calendar/AmbientCanvas"
 import { motion, AnimatePresence, MotionConfig } from "framer-motion"
@@ -367,7 +367,7 @@ export const SharedCalendar: React.FC = () => {
       const wday = new Date(currentYear, currentMonth, day).getDay()
       const isWeekend = wday === 0 || wday === 6
       // glow del día = color de la categoría del primer evento (da vida + información)
-      const glowColor = dayOccs[0] ? CATEGORY_BY_ID[dayOccs[0].plan.category].color : null
+      const glowColor = dayOccs[0] ? categoryOf(dayOccs[0].plan.category).color : null
 
       cells.push(
         <div
@@ -415,7 +415,7 @@ export const SharedCalendar: React.FC = () => {
           {/* puntos de eventos, coloreados por categoría */}
           <div className="relative z-10 flex h-2 items-center justify-center gap-1">
             {dayOccs.slice(0, 5).map((occ, i) => {
-              const c = CATEGORY_BY_ID[occ.plan.category].color
+              const c = categoryOf(occ.plan.category).color
               return (
                 <span
                   key={`${occ.plan.id}-${i}`}
@@ -459,7 +459,7 @@ export const SharedCalendar: React.FC = () => {
     const p = occ.plan
     const multi = !occ.recurring && !!p.end_date && toDateKey(p.end_date) !== toDateKey(p.date)
     const done = isOccurrenceDone(p, occ.dateKey)
-    const catColor = CATEGORY_BY_ID[p.category].color
+    const catColor = categoryOf(p.category).color
     return (
       <div key={`${p.id}-${occ.dateKey}`} className="group relative overflow-hidden rounded-2xl border border-pink-100/70 bg-white/60 p-4 shadow-sm backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:border-pink-200 hover:shadow-lg">
         {/* glow suave de la categoría al hacer hover */}

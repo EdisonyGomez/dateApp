@@ -5,7 +5,7 @@ import { Plus, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { todayKey } from "@/lib/date"
-import { CATEGORIES, CATEGORY_BY_ID, DEFAULT_CATEGORY_ID } from "@/lib/calendar/eventCategory"
+import { CATEGORIES, categoryOf, DEFAULT_CATEGORY_ID } from "@/lib/calendar/eventCategory"
 import type { CategoryId } from "@/lib/calendar/eventCategory"
 import type { NewPlanInput } from "@/hooks/useSharedPlans"
 
@@ -34,7 +34,7 @@ export const QuickAdd: React.FC<QuickAddProps> = ({ onAdd, onMore }) => {
     e.preventDefault()
     const t = title.trim()
     if (!t || saving) return
-    const cat = CATEGORY_BY_ID[category]
+    const cat = categoryOf(category)
     setSaving(true)
     const ok = await onAdd({
       title: t,

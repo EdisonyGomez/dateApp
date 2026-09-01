@@ -29,7 +29,7 @@ import { todayKey, toDateKey } from "@/lib/date"
 import { configToRRule, defaultRecurrence, rruleToConfig } from "@/lib/calendar/recurrence"
 import { RecurrenceField } from "./RecurrenceField"
 import type { NewPlanInput, Plan } from "@/hooks/useSharedPlans"
-import { CATEGORIES, CATEGORY_BY_ID, DEFAULT_CATEGORY_ID } from "@/lib/calendar/eventCategory"
+import { CATEGORIES, categoryOf, DEFAULT_CATEGORY_ID } from "@/lib/calendar/eventCategory"
 
 interface PlanFormProps {
   onSubmit: (input: NewPlanInput) => Promise<boolean>
@@ -140,7 +140,7 @@ export const PlanForm: React.FC<PlanFormProps> = ({ onSubmit, onCancel, initial,
     }
 
     const time = form.all_day ? null : form.time || null
-    const cat = CATEGORY_BY_ID[form.category]
+    const cat = categoryOf(form.category)
     const input: NewPlanInput = {
       title: form.title.trim(),
       description: form.description.trim(),

@@ -12,7 +12,7 @@ import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/AuthProvider"
 import { toast } from "sonner"
 import { excludeOccurrence, endSeriesBefore, isFirstOccurrence } from "@/lib/calendar/recurrence"
-import { categoryFromColor, type CategoryId } from "@/lib/calendar/eventCategory"
+import { categoryFromColor, isCategoryId, type CategoryId } from "@/lib/calendar/eventCategory"
 
 export interface Plan {
   id: string
@@ -103,8 +103,10 @@ const normalize = (row: PlanRow): Plan => ({
   all_day: row.all_day ?? false,
   end_time: row.end_time ?? null,
   color: row.color ?? null,
-  // columna real primero; si la migración aún no corrió, se deriva del color
-  category: (row.category as CategoryId | undefined) ?? categoryFromColor(row.color).id,
+  // columna real primero, PERO validada (texto libre en DB, sin CHECK constraint:
+  // un valor viejo o de un cliente desactualizado puede no ser un id conocido).
+  // Si no es válida, se deriva del color; si tampoco, cae en la categoría default.
+  category: isCategoryId(row.category) ? row.category : categoryFromColor(row.color).id,
   created_by: row.created_by,
   created_by_name: row.profiles?.name || "Desconocido",
   plan_type: row.plan_type ?? "individual",

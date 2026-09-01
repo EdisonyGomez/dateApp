@@ -1,6 +1,6 @@
 import type React from "react"
 import { cn } from "@/lib/utils"
-import { CATEGORY_BY_ID, type CategoryId } from "@/lib/calendar/eventCategory"
+import { categoryOf, type CategoryId } from "@/lib/calendar/eventCategory"
 
 /**
  * ───────────────────────────────────────────────
@@ -21,7 +21,7 @@ interface BadgeProps {
 
 /** Icono de la categoría dentro de un cuadrado con su tinte. */
 export const CategoryBadge: React.FC<BadgeProps> = ({ category, size = "md", className }) => {
-  const cat = CATEGORY_BY_ID[category]
+  const cat = categoryOf(category)
   const Icon = cat.icon
   const box = size === "sm" ? "h-6 w-6 rounded-lg" : "h-8 w-8 rounded-xl"
   const glyph = size === "sm" ? "h-3.5 w-3.5" : "h-4 w-4"
@@ -42,8 +42,9 @@ export const CategoryGlyph: React.FC<{ category: CategoryId; className?: string 
   category,
   className,
 }) => {
-  const Icon = CATEGORY_BY_ID[category].icon
-  return <Icon className={className} aria-label={CATEGORY_BY_ID[category].label} />
+  const cat = categoryOf(category)
+  const Icon = cat.icon
+  return <Icon className={className} aria-label={cat.label} />
 }
 
 interface TagProps {
@@ -53,7 +54,7 @@ interface TagProps {
 
 /** Pill compacto icono + label, para filas de metadatos. */
 export const CategoryTag: React.FC<TagProps> = ({ category, className }) => {
-  const cat = CATEGORY_BY_ID[category]
+  const cat = categoryOf(category)
   const Icon = cat.icon
   return (
     <span

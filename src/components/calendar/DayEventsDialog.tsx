@@ -14,7 +14,7 @@ import { formatKey } from "@/lib/date"
 import type { Occurrence } from "@/lib/calendar/recurrence"
 import type { Holiday } from "@/lib/calendar/holidays"
 import { CategoryBadge, CategoryTag } from "./CategoryBadge"
-import { CATEGORY_BY_ID } from "@/lib/calendar/eventCategory"
+import { categoryOf } from "@/lib/calendar/eventCategory"
 
 interface DayEventsDialogProps {
   dateKey: string | null
@@ -46,7 +46,7 @@ export const DayEventsDialog: React.FC<DayEventsDialogProps> = ({
   const reduced = useReducedMotion()
   const cardRef = useRef<HTMLDivElement>(null)
   // acento = color de la categoría del primer evento
-  const accent = occurrences[0] ? CATEGORY_BY_ID[occurrences[0].plan.category].color : "#f43f5e"
+  const accent = occurrences[0] ? categoryOf(occurrences[0].plan.category).color : "#f43f5e"
 
   // tilt 3D siguiendo el cursor (solo mouse; se apaga con reduced-motion)
   const handleTilt = (e: React.PointerEvent<HTMLDivElement>) => {

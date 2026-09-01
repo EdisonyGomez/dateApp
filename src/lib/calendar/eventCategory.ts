@@ -124,3 +124,19 @@ export function categoryFromColor(color: string | null | undefined): EventCatego
   }
   return CATEGORY_BY_ID[DEFAULT_CATEGORY_ID]
 }
+
+/** ¿Es un id de categoría conocido? (guard de tipo para datos no confiables: DB, realtime, caché de otro cliente). */
+export function isCategoryId(id: unknown): id is CategoryId {
+  return typeof id === "string" && id in CATEGORY_BY_ID
+}
+
+/**
+ * Accessor seguro: NUNCA usar `CATEGORY_BY_ID[plan.category]` directo, porque
+ * `category` es texto libre en la DB (sin CHECK constraint) — un valor viejo,
+ * o insertado por un cliente con código desactualizado, puede no matchear
+ * ninguna categoría conocida y romper el render. Esta función siempre
+ * devuelve algo válido.
+ */
+export function categoryOf(id: string | null | undefined): EventCategory {
+  return isCategoryId(id) ? CATEGORY_BY_ID[id] : CATEGORY_BY_ID[DEFAULT_CATEGORY_ID]
+}
