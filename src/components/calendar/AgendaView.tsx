@@ -46,7 +46,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ occurrences, onSelectPla
         <div key={group.key} className="flex gap-4">
           {/* columna de fecha */}
           <div className="w-16 shrink-0 text-right">
-            <div className={`text-2xl font-bold ${group.key === today ? "text-rose-500" : "text-gray-700"}`}>
+            <div className={`font-quick text-2xl font-bold ${group.key === today ? "text-rose-500" : "text-gray-700"}`}>
               {formatKey(group.key, { day: "numeric" })}
             </div>
             <div className="text-xs uppercase text-gray-400">{formatKey(group.key, { weekday: "short" })}</div>
@@ -67,7 +67,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({ occurrences, onSelectPla
                 >
                   <span className="mt-1 h-full w-1 shrink-0 self-stretch rounded-full" style={{ backgroundColor: color }} />
                   <div className="flex-1">
-                    <div className={`flex items-center gap-2 font-semibold text-gray-800 ${p.completed ? "text-gray-400 line-through" : ""}`}>
+                    <div className={`font-quick flex items-center gap-2 font-semibold text-gray-800 ${p.completed ? "text-gray-400 line-through" : ""}`}>
                       {p.is_task && <ListTodo className="h-4 w-4 shrink-0 text-violet-500" />}
                       {p.title}
                       {occ.recurring && <Repeat className="h-3.5 w-3.5 text-rose-400" />}

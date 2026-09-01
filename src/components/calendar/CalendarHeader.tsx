@@ -50,7 +50,7 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({ me, partner, tod
             <Sparkles className="h-3 w-3" />
             Our calendar
           </div>
-          <div className="truncate text-lg font-bold text-gray-800">{coupleName}</div>
+          <div className="font-quick truncate text-lg font-bold text-gray-800">{coupleName}</div>
         </div>
       </div>
 

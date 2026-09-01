@@ -172,7 +172,7 @@ export const PlanForm: React.FC<PlanFormProps> = ({ onSubmit, onCancel, initial,
       className="space-y-5"
     >
       <div className="flex items-center justify-between">
-        <h3 className="flex items-center gap-2 text-2xl font-bold text-gray-800">
+        <h3 className="font-quick flex items-center gap-2 text-2xl font-bold text-gray-800">
           <CalendarHeart className="h-7 w-7 text-rose-500" />
           {isEditing
             ? form.is_task
@@ -368,7 +368,7 @@ export const PlanForm: React.FC<PlanFormProps> = ({ onSubmit, onCancel, initial,
       <Button
         onClick={handleSubmit}
         disabled={saving}
-        className="w-full rounded-2xl bg-gradient-to-r from-rose-500 to-pink-500 py-6 text-base font-semibold shadow-lg transition-all hover:from-rose-600 hover:to-pink-600 hover:shadow-xl active:scale-[0.99]"
+        className="font-quick w-full rounded-2xl bg-gradient-to-r from-rose-500 to-pink-500 py-6 text-base font-semibold shadow-lg transition-all hover:from-rose-600 hover:to-pink-600 hover:shadow-xl active:scale-[0.99]"
       >
         <Save className="mr-2 h-5 w-5" />
         {saving ? "Saving…" : isEditing ? "Save changes" : form.is_task ? "Save task" : "Save plan"}

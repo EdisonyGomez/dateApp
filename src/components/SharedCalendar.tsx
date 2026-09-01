@@ -257,7 +257,7 @@ export const SharedCalendar: React.FC = () => {
   const renderToolbar = () => (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="flex items-center gap-2 text-2xl font-bold text-gray-800">
+        <h3 className="font-quick flex items-center gap-2 text-2xl font-bold text-gray-800">
           <CalendarDays className="h-7 w-7 text-rose-500" />
           <span className="capitalize">{title}</span>
         </h3>
@@ -332,7 +332,7 @@ export const SharedCalendar: React.FC = () => {
                   transition={{ type: "spring", stiffness: 400, damping: 30 }}
                 />
               )}
-              <span className={`relative z-10 ${active ? "text-rose-600" : "text-gray-500 hover:text-rose-500"}`}>
+              <span className={`font-quick relative z-10 ${active ? "text-rose-600" : "text-gray-500 hover:text-rose-500"}`}>
                 {v.label}
               </span>
             </button>
@@ -344,7 +344,7 @@ export const SharedCalendar: React.FC = () => {
 
       <Button
         onClick={() => openCreate(null)}
-        className="w-full rounded-2xl bg-gradient-to-r from-rose-500 to-pink-500 py-6 text-base font-semibold shadow-lg transition-all hover:from-rose-600 hover:to-pink-600 hover:shadow-xl active:scale-[0.99]"
+        className="font-quick w-full rounded-2xl bg-gradient-to-r from-rose-500 to-pink-500 py-6 text-base font-semibold shadow-lg transition-all hover:from-rose-600 hover:to-pink-600 hover:shadow-xl active:scale-[0.99]"
       >
         <Plus className="mr-2 h-5 w-5" />
         Add plan or task
@@ -409,7 +409,7 @@ export const SharedCalendar: React.FC = () => {
             </div>
           )}
 
-          <span className={`relative z-10 text-base font-bold ${isToday ? "text-rose-700" : "text-gray-700"}`}>{day}</span>
+          <span className={`font-quick relative z-10 text-base font-bold ${isToday ? "text-rose-700" : "text-gray-700"}`}>{day}</span>
 
           {/* puntos de eventos, coloreados por categoría */}
           <div className="relative z-10 flex h-2 items-center justify-center gap-1">
@@ -458,16 +458,23 @@ export const SharedCalendar: React.FC = () => {
     const p = occ.plan
     const multi = !occ.recurring && !!p.end_date && toDateKey(p.end_date) !== toDateKey(p.date)
     const done = isOccurrenceDone(p, occ.dateKey)
+    const catColor = CATEGORY_BY_ID[p.category].color
     return (
-      <div key={`${p.id}-${occ.dateKey}`} className="group rounded-2xl border border-pink-100 bg-white/70 p-4 shadow-sm backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
-        <div className="flex items-start justify-between gap-3">
+      <div key={`${p.id}-${occ.dateKey}`} className="group relative overflow-hidden rounded-2xl border border-pink-100/70 bg-white/60 p-4 shadow-sm backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:border-pink-200 hover:shadow-lg">
+        {/* glow suave de la categoría al hacer hover */}
+        <span
+          aria-hidden
+          className="pointer-events-none absolute -left-8 top-1/2 z-0 h-28 w-28 -translate-y-1/2 rounded-full opacity-0 blur-2xl transition-opacity duration-300 group-hover:opacity-30"
+          style={{ background: catColor }}
+        />
+        <div className="relative z-10 flex items-start justify-between gap-3">
           <div className="flex flex-1 items-start gap-3">
             <CategoryBadge category={p.category} size="md" className="mt-0.5" />
             {p.is_task && (
               <Checkbox checked={done} onCheckedChange={() => toggleOccurrence(p, occ.dateKey)} className="mt-0.5" aria-label="Complete task" />
             )}
             <div className="flex-1 cursor-pointer" onClick={() => openDetail(p, occ.dateKey)}>
-              <h5 className={`mb-1 flex items-center gap-2 font-semibold text-gray-800 ${done ? "text-gray-400 line-through" : ""}`}>
+              <h5 className={`font-quick mb-1 flex items-center gap-2 font-semibold text-gray-800 ${done ? "text-gray-400 line-through" : ""}`}>
                 {p.is_task && <ListTodo className="h-4 w-4 shrink-0 text-violet-500" />}
                 {p.title}
                 {occ.recurring && <Repeat className="h-3.5 w-3.5 text-rose-400" />}
@@ -532,7 +539,7 @@ export const SharedCalendar: React.FC = () => {
     const sections = groupUpcoming(upcoming)
     return (
       <div className="mt-4">
-        <h4 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-800">
+        <h4 className="font-quick mb-4 flex items-center gap-2 text-xl font-bold text-gray-800">
           <Clock className="h-6 w-6 text-rose-500" />
           Upcoming plans &amp; tasks
         </h4>
@@ -546,13 +553,13 @@ export const SharedCalendar: React.FC = () => {
             {sections.map((sec) => (
               <div key={sec.label}>
                 {/* título de sección */}
-                <div className="sticky top-0 z-10 mb-2 flex items-center gap-2 bg-white/80 py-1 backdrop-blur-sm">
-                  <span className="h-2 w-2 rounded-full bg-rose-400" />
-                  <h5 className="text-xs font-bold uppercase tracking-wide text-gray-500">{sec.label}</h5>
-                  <span className="rounded-full bg-pink-100 px-2 py-0.5 text-[11px] font-semibold text-rose-500">
+                <div className="sticky top-0 z-10 mb-2.5 flex items-center gap-2 bg-white/70 py-1.5 backdrop-blur-md">
+                  <span className="h-2 w-2 rounded-full bg-gradient-to-br from-rose-400 to-pink-500 shadow-[0_0_6px_rgba(244,63,94,0.6)]" />
+                  <h5 className="font-quick text-[11px] font-bold uppercase tracking-[0.18em] text-gray-500">{sec.label}</h5>
+                  <span className="rounded-full bg-gradient-to-r from-rose-500 to-pink-500 px-2 py-0.5 text-[10px] font-bold text-white shadow-sm">
                     {sec.items.length}
                   </span>
-                  <span className="h-px flex-1 bg-pink-100" />
+                  <span className="h-px flex-1 bg-gradient-to-r from-pink-200 to-transparent" />
                 </div>
                 <div className="space-y-3">{sec.items.map(renderUpcomingItem)}</div>
               </div>
@@ -648,7 +655,7 @@ export const SharedCalendar: React.FC = () => {
               return (
                 <>
                   <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2 text-2xl">
+                    <DialogTitle className="font-quick flex items-center gap-2 text-2xl">
                       <CategoryBadge category={p.category} size="sm" />
                       {p.is_task && <ListTodo className="h-5 w-5 text-violet-500" />}
                       <span className={done ? "text-gray-400 line-through" : ""}>{p.title}</span>
@@ -735,7 +742,7 @@ export const SharedCalendar: React.FC = () => {
             <>
               <DialogHeader>
                 <div className="mb-2 text-5xl">{selectedHoliday.flag}</div>
-                <DialogTitle className="text-2xl">{selectedHoliday.name}</DialogTitle>
+                <DialogTitle className="font-quick text-2xl">{selectedHoliday.name}</DialogTitle>
                 <DialogDescription className="flex items-center gap-2 pt-1 text-sm">
                   <span className="rounded-full bg-pink-100 px-2 py-0.5 font-medium text-rose-600">
                     {COUNTRY_NAME[selectedHoliday.country]}

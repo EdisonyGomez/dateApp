@@ -92,7 +92,7 @@ export const TimeGridView: React.FC<TimeGridViewProps> = ({
                 <div key={key} className={`${COL} border-l border-pink-100 py-2 text-center`}>
                   <div className="text-[11px] uppercase text-gray-400">{formatKey(key, { weekday: "short" })}</div>
                   <div
-                    className={`mx-auto mt-0.5 grid h-8 w-8 place-items-center rounded-full text-sm font-semibold ${
+                    className={`font-quick mx-auto mt-0.5 grid h-8 w-8 place-items-center rounded-full text-sm font-semibold ${
                       isToday ? "bg-rose-500 text-white" : "text-gray-700"
                     }`}
                   >

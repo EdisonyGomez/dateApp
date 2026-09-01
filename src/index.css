@@ -144,6 +144,12 @@
 }
 
 @layer components {
+  /* fuente redondeada "candy" — SOLO para display del calendario (títulos, números, labels) */
+  .font-quick {
+    font-family: "Quicksand", ui-rounded, "Hiragino Maru Gothic ProN", system-ui, sans-serif;
+    letter-spacing: -0.01em;
+  }
+
   /* superficie de vidrio premium; el glow de categoría se pasa por --cal-accent */
   .cal-glass {
     background: var(--cal-glass-bg);
