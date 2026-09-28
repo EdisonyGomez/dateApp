@@ -32,6 +32,7 @@ export interface DiaryEntry {
 export interface Partner {
   id: string
   name: string
+  avatar_url?: string | null
 }
 
 

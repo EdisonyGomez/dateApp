@@ -38,6 +38,8 @@ import { useNotifications } from "@/hooks/useNotifications"
 import { useReminderScheduler } from "@/hooks/useReminderScheduler"
 import { useGoogleCalendar } from "@/hooks/useGoogleCalendar"
 import { GoogleIcon } from "@/components/icons/GoogleIcon"
+import { useWeather } from "@/hooks/useWeather"
+import { WeatherFX } from "@/components/calendar/WeatherFX"
 import { toDateKey, todayKey, formatKey, addDays, keyFromDate } from "@/lib/date"
 import { occurrencesByDay, upcomingOccurrences, type Occurrence } from "@/lib/calendar/recurrence"
 import { holidaysByDateKey, type Holiday } from "@/lib/calendar/holidays"
@@ -138,6 +140,7 @@ export const SharedCalendar: React.FC = () => {
   } = useSharedPlans({ onPartnerInsert })
   useReminderScheduler(plans, notif.notify)
   const google = useGoogleCalendar({ onSynced: refetch })
+  const weather = useWeather()
 
   // intent "✓ Done" desde la notificación: /?complete=<planId>&date=<YYYY-MM-DD>
   useEffect(() => {
@@ -255,14 +258,20 @@ export const SharedCalendar: React.FC = () => {
 
   /* ───────── toolbar ───────── */
   const renderToolbar = () => (
-    <div className="space-y-3">
+    <div
+      className="relative overflow-hidden rounded-3xl p-3 shadow-lg transition-[background] duration-700 ease-out sm:p-4"
+      style={{ background: weather.bg }}
+    >
+      <WeatherFX weather={weather.key} />
+      <div className="relative z-10 space-y-3">
       {/* fila única: identidad de la pareja + navegación del mes */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <CalendarHeader
           me={{ name: profile?.name || user?.email || "You", avatarUrl: profile?.avatar_url }}
-          partner={partner ? { name: partner.name } : null}
+          partner={partner ? { name: partner.name, avatarUrl: partner.avatar_url } : null}
+          weather={{ label: weather.label, icon: weather.icon, tempC: weather.tempC, fg: weather.fg }}
         />
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5 rounded-full bg-white/70 px-2 py-1 shadow-sm backdrop-blur-md">
           {notif.supported && (
             <Button
               variant="outline"
@@ -342,8 +351,8 @@ export const SharedCalendar: React.FC = () => {
         </div>
       </div>
 
-      {/* switcher de vistas — pill rosa degradado */}
-      <div className="grid grid-cols-4 gap-1 rounded-2xl bg-pink-100/50 p-1 shadow-inner">
+      {/* switcher de vistas — pill rosa degradado sobre glass (legible en cualquier clima) */}
+      <div className="grid grid-cols-4 gap-1 rounded-2xl bg-white/55 p-1 shadow-sm backdrop-blur-md">
         {VIEWS.map((v) => {
           const active = view === v.id
           return (
@@ -375,6 +384,7 @@ export const SharedCalendar: React.FC = () => {
         <Plus className="mr-2 h-5 w-5" />
         Add plan or task
       </Button>
+      </div>
     </div>
   )
 

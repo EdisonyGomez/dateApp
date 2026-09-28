@@ -1,0 +1,117 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Weather animations — showcase</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Segoe UI',system-ui,sans-serif;background:#f0ecf0;padding:24px 16px;color:#3b3b40}
+  h1{font-size:16px;text-align:center;color:#9333ea;margin:0 0 4px}
+  .sub{font-size:12px;text-align:center;color:#6b7280;margin:0 0 20px}
+  .grid{max-width:920px;margin:0 auto;display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+  @media(max-width:640px){.grid{grid-template-columns:1fr}}
+
+  .mini{position:relative;overflow:hidden;border-radius:18px;height:150px;color:var(--fg);
+    box-shadow:0 10px 24px rgba(0,0,0,.08);border:1px solid rgba(255,255,255,.4)}
+  .fx{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:1}
+  .top{position:relative;z-index:3;display:flex;align-items:center;gap:10px;padding:12px 14px}
+  .avs{position:relative;display:flex;align-items:center}
+  .av{width:34px;height:34px;border-radius:50%;box-shadow:0 0 0 2px #fff,0 3px 6px rgba(0,0,0,.2);animation:bob 3s ease-in-out infinite}
+  .a1{background:linear-gradient(135deg,#38bdf8,#6366f1)} .a2{background:linear-gradient(135deg,#fb7185,#a855f7);margin-left:-11px;animation-delay:.5s}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+  .hb{position:absolute;bottom:-4px;left:44%;transform:translateX(-50%);width:17px;height:17px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;color:#f43f5e;font-size:9px;box-shadow:0 2px 4px rgba(0,0,0,.2);z-index:4;animation:beat 1.3s ease-in-out infinite}
+  @keyframes beat{0%,100%{transform:translateX(-50%) scale(1)}15%{transform:translateX(-50%) scale(1.3)}30%{transform:translateX(-50%) scale(1)}}
+  .meta .lbl{font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;opacity:.9}
+  .meta .nm{font-size:16px;font-weight:800;text-shadow:0 1px 3px rgba(0,0,0,.18)}
+  .chip{position:absolute;bottom:10px;left:14px;z-index:3;font-size:11px;font-weight:700;background:rgba(255,255,255,.7);color:#334155;border-radius:999px;padding:3px 9px;backdrop-filter:blur(4px)}
+  .tag{position:absolute;top:10px;right:12px;z-index:3;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;background:rgba(0,0,0,.16);color:#fff;border-radius:999px;padding:3px 8px}
+
+  /* fx pieces */
+  .rain{position:absolute;top:-20px;width:2px;height:16px;background:linear-gradient(transparent,rgba(255,255,255,.9));border-radius:2px;animation:fall linear infinite}
+  @keyframes fall{to{transform:translateY(180px)}}
+  .snow{position:absolute;top:-14px;color:#fff;animation:snowfall linear infinite}
+  @keyframes snowfall{0%{transform:translateY(0) translateX(0)}100%{transform:translateY(170px) translateX(18px)}}
+  .star{position:absolute;color:#fde68a;animation:twk 2s ease-in-out infinite}
+  @keyframes twk{0%,100%{opacity:.25;transform:scale(.7)}50%{opacity:1;transform:scale(1.3)}}
+  .cloud{position:absolute;opacity:.9;animation:drift linear infinite}
+  @keyframes drift{from{transform:translateX(-70px)}to{transform:translateX(520px)}}
+  .sun{position:absolute;top:-24px;right:-10px;width:88px;height:88px;border-radius:50%;background:radial-gradient(circle,#fff6c2,#fbbf24 60%,#f59e0b);box-shadow:0 0 40px 10px rgba(251,191,36,.7);animation:pulseSun 2.6s ease-in-out infinite;z-index:1}
+  @keyframes pulseSun{0%,100%{transform:scale(1)}50%{transform:scale(1.09)}}
+  .rays{position:absolute;top:-24px;right:-10px;width:88px;height:88px;border-radius:50%;background:conic-gradient(from 0deg,rgba(255,255,255,.6) 0 6deg,transparent 6deg 30deg);animation:spin 14s linear infinite;z-index:1}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .heatwave{position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 7px,rgba(255,255,255,.07) 8px,transparent 9px);animation:heat 1.4s ease-in-out infinite}
+  @keyframes heat{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+  .melt{position:absolute;right:22px;bottom:8px;font-size:34px;z-index:2;animation:shake .55s ease-in-out infinite}
+  @keyframes shake{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(4deg)}}
+  .drop{position:absolute;font-size:12px;animation:dropf 1s linear infinite;z-index:2}
+  @keyframes dropf{0%{transform:translateY(0);opacity:1}100%{transform:translateY(24px);opacity:0}}
+  .lightning{position:absolute;inset:0;background:rgba(255,255,255,.92);opacity:0;z-index:2}
+  .emoji{position:absolute;animation:snowfall linear}
+  .moon{position:absolute;top:8px;right:14px;font-size:30px;z-index:1}
+  .fog{position:absolute;height:26px;left:-40%;width:180%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent);animation:fogmove linear infinite}
+  @keyframes fogmove{from{transform:translateX(-30%)}to{transform:translateX(30%)}}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+</head>
+<body>
+  <h1>Animaciones de clima — todas juntas</h1>
+  <p class="sub">Cada tarjeta anima su clima en vivo. Esto es lo que aparecería en el header del calendario según el clima real.</p>
+  <div class="grid" id="grid"></div>
+
+<script>
+  const CL={
+    clear:{tag:'Soleado',bg:'linear-gradient(150deg,#fef9c3,#fed7aa,#fecaca)',fg:'#7c2d12',chip:'☀️ 24° Soleado'},
+    hot:{tag:'Sol terrible',bg:'linear-gradient(150deg,#fca5a5,#fb923c,#ef4444)',fg:'#fff',chip:'\u{1F975} 38° ¡Calor!'},
+    rain:{tag:'Lluvia',bg:'linear-gradient(150deg,#93c5fd,#60a5fa,#64748b)',fg:'#0f2740',chip:'\u{1F327}️ 17° Lluvia'},
+    storm:{tag:'Tormenta',bg:'linear-gradient(150deg,#475569,#334155,#1e293b)',fg:'#e2e8f0',chip:'⛈️ 15° Tormenta'},
+    clouds:{tag:'Nublado',bg:'linear-gradient(150deg,#e0e7ff,#cbd5e1,#eef2ff)',fg:'#334155',chip:'☁️ 21° Nublado'},
+    snow:{tag:'Nieve',bg:'linear-gradient(150deg,#e0f2fe,#dbeafe,#f8fafc)',fg:'#1e3a5f',chip:'❄️ 1° Nieve'},
+    night:{tag:'Noche despejada',bg:'linear-gradient(150deg,#3730a3,#1e1b4b,#0f172a)',fg:'#e9d5ff',chip:'\u{1F319} 12° Despejado'},
+    fog:{tag:'Niebla',bg:'linear-gradient(150deg,#cbd5e1,#e2e8f0,#cbd5e1)',fg:'#334155',chip:'\u{1F32B}️ 14° Niebla'},
+  };
+  const grid=document.getElementById('grid');
+  const mk=(p,c,txt,css)=>{const e=document.createElement('span');e.className=c;if(txt)e.textContent=txt;Object.assign(e.style,css||{});p.appendChild(e);return e;};
+
+  function build(key){
+    const c=CL[key];
+    const card=document.createElement('div');card.className='mini';card.style.setProperty('--fg',c.fg);card.style.background=c.bg;
+    card.innerHTML=`<div class="fx"></div>
+      <div class="tag">${c.tag}</div>
+      <div class="top">
+        <div class="avs"><div class="av a1"></div><div class="av a2"></div><div class="hb">❤</div></div>
+        <div class="meta"><div class="lbl">✦ Our calendar</div><div class="nm">Yesid & Melody</div></div>
+      </div>
+      <div class="chip">${c.chip}</div>`;
+    grid.appendChild(card);
+    const fx=card.querySelector('.fx');
+    start(key,fx);
+  }
+
+  function start(key,fx){
+    if(key==='clear'){ mk(fx,'sun'); mk(fx,'rays');
+      setInterval(()=>{const e=mk(fx,'emoji','\u{1F60E}',{left:(8+Math.random()*70)+'%',top:'-16px',fontSize:'16px',animationDuration:(5+Math.random()*3)+'s'});setTimeout(()=>e.remove(),8000);},2600);
+    }
+    else if(key==='hot'){ mk(fx,'sun'); mk(fx,'rays'); mk(fx,'heatwave'); mk(fx,'melt','\u{1F975}');
+      setInterval(()=>{const d=mk(fx,'drop','\u{1F4A6}',{right:(20+Math.random()*24)+'px',bottom:'34px',fontSize:(10+Math.random()*6)+'px'});setTimeout(()=>d.remove(),1000);},400);
+      setInterval(()=>{const e=mk(fx,'emoji','\u{1F366}',{left:'20%',top:'-14px',fontSize:'18px',animationDuration:'4s'});setTimeout(()=>e.remove(),4200);},3200);
+    }
+    else if(key==='rain'){
+      setInterval(()=>{const r=mk(fx,'rain');r.style.left=(Math.random()*100)+'%';r.style.animationDuration=(0.5+Math.random()*0.4)+'s';r.style.opacity=.4+Math.random()*.5;setTimeout(()=>r.remove(),1000);},40);
+      setInterval(()=>{const e=mk(fx,'emoji','☂️',{left:(10+Math.random()*70)+'%',top:'-16px',fontSize:'18px',animationDuration:'6s'});setTimeout(()=>e.remove(),6200);},4200);
+    }
+    else if(key==='storm'){
+      setInterval(()=>{const r=mk(fx,'rain');r.style.left=(Math.random()*100)+'%';r.style.animationDuration=(0.35+Math.random()*0.3)+'s';setTimeout(()=>r.remove(),800);},26);
+      const flash=mk(fx,'lightning');
+      const boom=()=>{flash.style.transition='none';flash.style.opacity='.9';setTimeout(()=>{flash.style.transition='opacity .5s';flash.style.opacity='0';},70);setTimeout(boom,1800+Math.random()*2200);};
+      setTimeout(boom,1200);
+    }
+    else if(key==='clouds'){ [0,1,2].forEach(i=>mk(fx,'cloud','☁️',{top:(8+i*30)+'px',fontSize:(28+i*10)+'px',animationDuration:(15+i*6)+'s',animationDelay:(-i*5)+'s'})); }
+    else if(key==='snow'){ setInterval(()=>{const s=mk(fx,'snow','❄️');s.style.left=(Math.random()*100)+'%';s.style.fontSize=(8+Math.random()*10)+'px';s.style.animationDuration=(3+Math.random()*3)+'s';setTimeout(()=>s.remove(),6200);},170); }
+    else if(key==='night'){ mk(fx,'moon','\u{1F319}'); for(let i=0;i<20;i++)mk(fx,'star','✦',{left:(Math.random()*100)+'%',top:(Math.random()*75)+'%',fontSize:(7+Math.random()*8)+'px',animationDelay:(Math.random()*2)+'s'}); }
+    else if(key==='fog'){ [0,1,2,3].forEach(i=>mk(fx,'fog','',{top:(18+i*30)+'px',animationDuration:(6+i*2)+'s',animationDelay:(-i*2)+'s',opacity:.6})); }
+  }
+
+  Object.keys(CL).forEach(build);
+</script>
+</body>
+</html>
