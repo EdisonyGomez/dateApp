@@ -68,9 +68,10 @@ export function useGoogleCalendar({ onSynced }: Options = {}) {
   }, [user])
 
   const sync = useCallback(
-    async (opts: { silent?: boolean } = {}): Promise<SyncResult | null> => {
+    async (opts: { silent?: boolean; background?: boolean } = {}): Promise<SyncResult | null> => {
       if (!user) return null
-      setSyncing(true)
+      // background (polling / auto-push): no toca el spinner del botón
+      if (!opts.background) setSyncing(true)
       try {
         const { data, error } = await supabase.functions.invoke<SyncResult>("google-sync")
         if (error) throw error
@@ -84,14 +85,15 @@ export function useGoogleCalendar({ onSynced }: Options = {}) {
               : "Todo al día con Google Calendar",
           )
         }
-        onSyncedRef.current?.()
+        // refresca la UI solo si el pull trajo cambios (evita re-render inútil cada 60s)
+        if (total(r.pulled) > 0) onSyncedRef.current?.()
         return r
       } catch (e) {
         console.error("google sync failed:", e)
         if (!opts.silent) toast.error("Falló la sincronización con Google")
         return null
       } finally {
-        setSyncing(false)
+        if (!opts.background) setSyncing(false)
       }
     },
     [user],
@@ -126,6 +128,43 @@ export function useGoogleCalendar({ onSynced }: Options = {}) {
       toast.error("No se pudo conectar Google Calendar")
     }
   }, [fetchStatus, sync])
+
+  // ── "tiempo real" por polling: mientras esté conectado y la pestaña visible,
+  //    sincroniza cada 60s + al volver el foco. Google no permite webhooks a
+  //    *.supabase.co (requiere verificar dominio), así que polling es la vía real.
+  useEffect(() => {
+    if (!user || !status?.connected) return
+    const POLL = 60_000
+    let id: number | undefined
+    const tick = () => {
+      if (document.visibilityState === "visible") sync({ silent: true, background: true })
+    }
+    const start = () => {
+      if (id == null) id = window.setInterval(tick, POLL)
+    }
+    const stop = () => {
+      if (id != null) {
+        clearInterval(id)
+        id = undefined
+      }
+    }
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        tick()
+        start()
+      } else {
+        stop()
+      }
+    }
+    start()
+    document.addEventListener("visibilitychange", onVisibility)
+    window.addEventListener("focus", tick)
+    return () => {
+      stop()
+      document.removeEventListener("visibilitychange", onVisibility)
+      window.removeEventListener("focus", tick)
+    }
+  }, [user, status?.connected, sync])
 
   const connect = useCallback(async () => {
     if (!user) return

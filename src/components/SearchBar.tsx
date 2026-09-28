@@ -45,13 +45,13 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   return (
     <form onSubmit={handleSubmit} className="relative">
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-pink-400" />
         <Input
           type="text"
           placeholder={placeholder}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="pl-10 pr-10"
+          className="h-12 rounded-2xl border-pink-100 bg-white pl-11 pr-11 text-sm text-pink-800 shadow-sm transition-all duration-300 placeholder:text-pink-300 focus-visible:border-rose-300 focus-visible:ring-1 focus-visible:ring-rose-300"
         />
         {query && (
           <Button
@@ -59,7 +59,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
             variant="ghost"
             size="sm"
             onClick={handleClear}
-            className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0"
+            className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 rounded-full p-0 text-pink-400 hover:bg-pink-50 hover:text-rose-500"
           >
             <X className="h-4 w-4" />
           </Button>

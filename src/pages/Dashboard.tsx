@@ -16,7 +16,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { DiaryEntry as DiaryEntryType } from "@/types"
 import { toast } from "sonner"
-import { Calendar, Heart, BookOpen, CalendarDays } from "lucide-react"
+import { Calendar, Heart, BookOpen, CalendarDays, Smile, ChevronDown, RefreshCw, X } from "lucide-react"
 import { HeartParticles } from "@/components/HeartParticles"
 import { RomanticBackground } from "@/components/RomanticBackground" // 👈 nuevo import
 import { Reveal3D } from "@/components/motion/Reveal3D"
@@ -276,80 +276,94 @@ const { refreshEntries, refreshing } = useDiaryEntries()
           >
 
             {/* Search & Filters */}
-            <Card className="p-6 rounded-3xl shadow-xl border border-pink-100 bg-white/80 backdrop-blur-sm">
+            <Card className="relative overflow-hidden p-5 sm:p-6 rounded-3xl shadow-xl border border-pink-100 bg-white/80 backdrop-blur-sm">
+              {/* Filo de acento superior */}
+              <div className="pointer-events-none absolute inset-x-6 top-0 h-[3px] rounded-full bg-gradient-to-r from-transparent via-pink-400 to-transparent" />
               <CardContent className="p-0 space-y-4">
                 <SearchBar onSearch={setSearchQuery} placeholder="Busca en tus entradas del diario..." />
-                <div className="flex flex-wrap gap-3 items-center">
-                  <input
-                    type="date"
-                    value={selectedDate}
-                    onChange={(e) => setSelectedDate(e.target.value)}
-                    className="px-4 py-2 border border-pink-200 rounded-xl text-sm text-pink-800 bg-pink-50/50 shadow-sm focus:border-rose-300 focus:ring-1 focus:ring-rose-300 transition-all duration-300 cursor-pointer hover:bg-pink-100"
-                  />
-                  <select
-                    value={filterMood}
-                    onChange={(e) => setFilterMood(e.target.value)}
-                    className="px-4 py-2 border border-pink-200 rounded-xl text-sm text-pink-800 bg-pink-50/50 shadow-sm focus:border-rose-300 focus:ring-1 focus:ring-rose-300 transition-all duration-300 cursor-pointer hover:bg-pink-100"
-                  >
-                    <option value="all" className="text-pink-800">
-                      Todos los Ánimos
-                    </option>
-                    <option value="happy" className="text-pink-800">
-                      😊 Feliz
-                    </option>
-                    <option value="sad" className="text-pink-800">
-                      😢 Triste
-                    </option>
-                    <option value="excited" className="text-pink-800">
-                      🤩 Emocionado
-                    </option>
-                    <option value="calm" className="text-pink-800">
-                      😌 Tranquilo
-                    </option>
-                    <option value="stressed" className="text-pink-800">
-                      😰 Estresado
-                    </option>
-                    <option value="grateful" className="text-pink-800">
-                      🙏 Agradecido
-                    </option>
-                    <option value="neutral" className="text-pink-800">
-                      😐 Neutral
-                    </option>
-                  </select>
+
+                {/* Filtros: fecha + ánimo en grid de 2 columnas (no se desborda en móvil) */}
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="flex items-center gap-2 rounded-2xl border border-pink-100 bg-pink-50/60 px-3 py-2.5 shadow-sm transition-all duration-300 focus-within:border-rose-300 focus-within:ring-1 focus-within:ring-rose-300 hover:bg-pink-100/60">
+                    <CalendarDays className="h-4 w-4 shrink-0 text-rose-400" />
+                    <input
+                      type="date"
+                      value={selectedDate}
+                      onChange={(e) => setSelectedDate(e.target.value)}
+                      className="w-full min-w-0 cursor-pointer bg-transparent text-sm text-pink-800 outline-none [color-scheme:light]"
+                    />
+                  </label>
+                  <div className="relative flex items-center gap-2 rounded-2xl border border-pink-100 bg-pink-50/60 px-3 py-2.5 shadow-sm transition-all duration-300 focus-within:border-rose-300 focus-within:ring-1 focus-within:ring-rose-300 hover:bg-pink-100/60">
+                    <Smile className="h-4 w-4 shrink-0 text-rose-400" />
+                    <select
+                      value={filterMood}
+                      onChange={(e) => setFilterMood(e.target.value)}
+                      className="w-full min-w-0 cursor-pointer appearance-none bg-transparent pr-5 text-sm text-pink-800 outline-none"
+                    >
+                      <option value="all">Todos los Ánimos</option>
+                      <option value="happy">😊 Feliz</option>
+                      <option value="sad">😢 Triste</option>
+                      <option value="excited">🤩 Emocionado</option>
+                      <option value="calm">😌 Tranquilo</option>
+                      <option value="stressed">😰 Estresado</option>
+                      <option value="grateful">🙏 Agradecido</option>
+                      <option value="neutral">😐 Neutral</option>
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-3 h-4 w-4 text-pink-400" />
+                  </div>
+
                   {(searchQuery || selectedDate || filterMood !== "all") && (
-                    <Button
-                      variant="outline"
-                      size="sm"
+                    <button
+                      type="button"
                       onClick={() => {
                         setSearchQuery("")
                         setSelectedDate("")
                         setFilterMood("all")
                       }}
-                      className="px-4 py-2 rounded-xl shadow-md border-pink-200 text-pink-700 hover:bg-pink-50 hover:shadow-lg transition-all duration-300 ease-in-out transform hover:-translate-y-1"
+                      className="col-span-2 inline-flex items-center justify-center gap-2 rounded-2xl border border-pink-100 bg-white/70 px-4 py-2 text-sm font-semibold text-pink-600 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:bg-pink-50 hover:shadow-md"
                     >
-                      Clear Filters
-                    </Button>
+                      <X className="h-4 w-4" /> Limpiar filtros
+                    </button>
                   )}
                 </div>
 
-                <div className="ml-auto flex gap-2">
+                {/* Modo de lectura (segmented control) + recargar */}
+                <div className="flex items-center gap-3">
+                  <div className="relative grid flex-1 grid-cols-2 gap-1 rounded-2xl border border-pink-100 bg-pink-50/70 p-1">
+                    <span
+                      aria-hidden
+                      className={`absolute inset-y-1 left-1 right-1/2 rounded-xl bg-gradient-to-br from-pink-400 to-rose-500 shadow-md shadow-rose-500/40 transition-transform duration-300 ease-[cubic-bezier(.22,1,.36,1)] ${
+                        readingMode === "duet" ? "translate-x-full" : "translate-x-0"
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setReadingMode("timeline")}
+                      className={`relative z-10 rounded-xl py-2 text-sm font-bold transition-colors duration-300 ${
+                        readingMode === "timeline" ? "text-white" : "text-pink-600 hover:text-rose-600"
+                      }`}
+                    >
+                      Timeline
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setReadingMode("duet")}
+                      className={`relative z-10 rounded-xl py-2 text-sm font-bold transition-colors duration-300 ${
+                        readingMode === "duet" ? "text-white" : "text-pink-600 hover:text-rose-600"
+                      }`}
+                    >
+                      Dueto
+                    </button>
+                  </div>
+
+                  {/* Recargar la lista sin recargar la página */}
                   <Button
-                    variant={readingMode === "timeline" ? "default" : "outline"}
-                    className="rounded-xl"
-                    onClick={() => setReadingMode("timeline")}
-                  >
-                    Timeline
-                  </Button>
-                  <Button
-                    variant={readingMode === "duet" ? "default" : "outline"}
-                    className="rounded-xl"
-                    onClick={() => setReadingMode("duet")}
-                  >
-                    Dueto
-                  </Button>
-                  {/* Botón para recargar la lista de entradas sin recargar la página */}
-                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
                     disabled={refreshing}
+                    aria-label="Recargar entradas"
+                    title="Recargar entradas"
                     onClick={async () => {
                       setVisibleCount(ENTRIES_PAGE_SIZE)
                       setSearchQuery("")
@@ -358,8 +372,9 @@ const { refreshEntries, refreshing } = useDiaryEntries()
                       await refreshEntries()
                       toast.success("Entradas actualizadas ✅")
                     }}
+                    className="h-11 w-11 shrink-0 rounded-2xl border-pink-100 bg-white/80 text-rose-500 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:bg-pink-50 hover:text-rose-600 hover:shadow-md disabled:opacity-60"
                   >
-                    Recargar entradas
+                    <RefreshCw className={refreshing ? "animate-spin" : ""} />
                   </Button>
                 </div>
               </CardContent>
@@ -367,12 +382,24 @@ const { refreshEntries, refreshing } = useDiaryEntries()
 
             {/* Entries List */}
             <div className="space-y-6 relative">
-              <h2 className="text-3xl font-extrabold flex items-center text-rose-500">
-                <div className="bg-gradient-to-r from-pink-400 to-rose-500 p-3 rounded-full shadow-lg mr-3 transform transition-transform duration-300 hover:rotate-6">
-                  <BookOpen className="h-7 w-7 text-white" />
+              <div className="relative">
+                <span className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-rose-500/90">
+                  Tu diario
+                </span>
+                <div className="mt-1 flex items-center gap-3">
+                  <div className="shrink-0 rounded-2xl bg-gradient-to-br from-pink-400 to-rose-500 p-3 shadow-lg shadow-rose-500/30 transition-transform duration-300 hover:rotate-6">
+                    <BookOpen className="h-6 w-6 text-white" />
+                  </div>
+                  <h2 className="bg-gradient-to-br from-rose-700 via-rose-600 to-pink-600 bg-clip-text text-3xl font-extrabold tracking-tight text-transparent [text-shadow:0_1px_0_rgba(255,255,255,0.35)] sm:text-4xl">
+                    {readingMode === "timeline" ? "Diary Entries" : "Vista Dueto"}
+                  </h2>
+                  <span className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full bg-gradient-to-br from-pink-500 to-rose-500 px-3 py-1.5 text-sm font-extrabold text-white shadow-lg shadow-rose-500/40">
+                    <Heart className="h-3.5 w-3.5 animate-heartbeat fill-current" />
+                    {filteredEntries.length}
+                  </span>
                 </div>
-                {readingMode === "timeline" ? "Diary Entries" : "Vista Dueto"} ({filteredEntries.length})
-              </h2>
+                <div className="animate-shimmer mt-2 ml-[3.75rem] h-[3px] w-20 rounded-full bg-[linear-gradient(90deg,#e11d48,#ec4899,#e11d48)] bg-[length:200%_100%]" />
+              </div>
 
               {/* Vacío */}
               {filteredEntries.length === 0 ? (
@@ -575,6 +602,28 @@ const { refreshEntries, refreshing } = useDiaryEntries()
         }
         .animate-ping-on-hover:hover {
           animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
+        }
+        @keyframes heartbeat {
+          0%, 100% { transform: scale(1); }
+          12% { transform: scale(1.22); }
+          24% { transform: scale(1); }
+          36% { transform: scale(1.14); }
+          50% { transform: scale(1); }
+        }
+        .animate-heartbeat {
+          animation: heartbeat 1.6s ease-in-out infinite;
+        }
+        @keyframes shimmer {
+          to { background-position: 200% 0; }
+        }
+        .animate-shimmer {
+          animation: shimmer 2.6s linear infinite;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .animate-heartbeat,
+          .animate-shimmer {
+            animation: none;
+          }
         }
       `}</style>
     </div>

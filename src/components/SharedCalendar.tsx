@@ -168,19 +168,29 @@ export const SharedCalendar: React.FC = () => {
 
   const openDetail = (plan: Plan, dateKey: string) => setSelected({ plan, dateKey })
 
-  /** Borrar: recurrente → diálogo de opciones; único → borra directo. */
-  const requestDelete = (plan: Plan, dateKey: string) => {
-    setSelected(null)
-    if (plan.rrule) setDeleteTarget({ plan, dateKey })
-    else removePlan(plan.id)
+  /** Empuja los cambios locales a Google en segundo plano (si está conectado). */
+  const syncGoogleSoon = () => {
+    if (google.status?.connected) void google.sync({ silent: true, background: true })
   }
-  const handleDeleteChoice = (mode: DeleteMode) => {
+
+  /** Borrar: recurrente → diálogo de opciones; único → borra directo. */
+  const requestDelete = async (plan: Plan, dateKey: string) => {
+    setSelected(null)
+    if (plan.rrule) {
+      setDeleteTarget({ plan, dateKey })
+    } else {
+      await removePlan(plan.id)
+      syncGoogleSoon()
+    }
+  }
+  const handleDeleteChoice = async (mode: DeleteMode) => {
     if (!deleteTarget) return
     const { plan, dateKey } = deleteTarget
-    if (mode === "this") deleteOccurrence(plan, dateKey)
-    else if (mode === "future") deleteFutureFrom(plan, dateKey)
-    else removePlan(plan.id)
+    if (mode === "this") await deleteOccurrence(plan, dateKey)
+    else if (mode === "future") await deleteFutureFrom(plan, dateKey)
+    else await removePlan(plan.id)
     setDeleteTarget(null)
+    syncGoogleSoon()
   }
 
   const showForm = showAddPlan || !!editingPlan
@@ -191,7 +201,10 @@ export const SharedCalendar: React.FC = () => {
   }
   const handleFormSubmit = async (input: Parameters<typeof addPlan>[0]) => {
     const ok = editingPlan ? await updatePlan(editingPlan.id, input) : await addPlan(input)
-    if (ok) closeForm()
+    if (ok) {
+      closeForm()
+      syncGoogleSoon()
+    }
     return ok
   }
   const openEdit = (plan: Plan) => {
@@ -263,35 +276,35 @@ export const SharedCalendar: React.FC = () => {
       style={{ background: weather.bg }}
     >
       <WeatherFX weather={weather.key} />
-      <div className="relative z-10 space-y-3">
-      {/* fila única: identidad de la pareja + navegación del mes */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="relative z-10 space-y-2.5">
+      {/* Fila 1: identidad de la pareja + acciones rápidas (notif, Google) */}
+      <div className="flex items-start justify-between gap-2">
         <CalendarHeader
           me={{ name: profile?.name || user?.email || "You", avatarUrl: profile?.avatar_url }}
           partner={partner ? { name: partner.name, avatarUrl: partner.avatar_url } : null}
           weather={{ label: weather.label, icon: weather.icon, tempC: weather.tempC, fg: weather.fg }}
         />
-        <div className="flex flex-wrap items-center gap-1.5 rounded-full bg-white/70 px-2 py-1 shadow-sm backdrop-blur-md">
+        <div className="flex shrink-0 items-center gap-0.5 rounded-full bg-white/75 p-1 shadow-sm backdrop-blur-md">
           {notif.supported && (
             <Button
-              variant="outline"
+              variant="ghost"
               size="icon"
               onClick={() =>
                 notif.pushConfigured && user ? notif.enablePush(user.id) : notif.requestPermission()
               }
               title={notif.permission === "granted" ? "Notifications on" : "Enable notifications"}
               aria-label="Notifications"
-              className="rounded-full border-pink-200 hover:bg-pink-50"
+              className="h-9 w-9 rounded-full hover:bg-pink-50"
             >
               {notif.permission === "granted" ? (
-                <BellRing className="h-4 w-4 text-rose-500" />
+                <BellRing className="h-[18px] w-[18px] text-rose-500" />
               ) : (
-                <Bell className="h-4 w-4 text-gray-400" />
+                <Bell className="h-[18px] w-[18px] text-gray-500" />
               )}
             </Button>
           )}
           <Button
-            variant="outline"
+            variant="ghost"
             size="icon"
             onClick={() => (google.status?.connected ? google.sync() : google.connect())}
             disabled={google.connecting || google.syncing}
@@ -301,55 +314,61 @@ export const SharedCalendar: React.FC = () => {
                 : "Conectar Google Calendar"
             }
             aria-label={google.status?.connected ? "Sincronizar con Google Calendar" : "Conectar Google Calendar"}
-            className="relative rounded-full border-pink-200 hover:bg-pink-50"
+            className="relative h-9 w-9 rounded-full hover:bg-pink-50"
           >
             {google.connecting || google.syncing ? (
-              <Loader2 className="h-4 w-4 animate-spin text-rose-500" />
+              <Loader2 className="h-[18px] w-[18px] animate-spin text-rose-500" />
             ) : (
-              <GoogleIcon className="h-4 w-4" />
+              <GoogleIcon className="h-[18px] w-[18px]" />
             )}
             {google.status?.connected && !google.syncing && !google.connecting && (
-              <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-emerald-500" />
+              <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full border-2 border-white bg-emerald-500" />
             )}
           </Button>
-          {view !== "agenda" ? (
-            <>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => shift(-1)}
-                className="rounded-full border-pink-200 text-rose-600 hover:bg-pink-50"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <span className="font-quick min-w-[7rem] text-center text-lg font-bold capitalize text-gray-800">
-                {title}
-              </span>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => shift(1)}
-                className="rounded-full border-pink-200 text-rose-600 hover:bg-pink-50"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setNavDir(0)
-                  setCurrentDate(new Date())
-                }}
-                className="rounded-full border-pink-200 px-3 text-rose-600 hover:bg-pink-50"
-              >
-                Today
-              </Button>
-            </>
-          ) : (
-            <span className="font-quick text-lg font-bold text-gray-800">Agenda</span>
-          )}
         </div>
       </div>
+
+      {/* Fila 2: navegación de fecha (propia, no se apila) */}
+      {view !== "agenda" ? (
+        <div className="flex items-center justify-between gap-2 rounded-2xl bg-white/75 p-1 pl-1.5 shadow-sm backdrop-blur-md">
+          <div className="flex items-center gap-0.5">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => shift(-1)}
+              aria-label="Mes anterior"
+              className="h-9 w-9 shrink-0 rounded-full text-rose-600 hover:bg-pink-50"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+            <span className="font-quick min-w-[8.5rem] text-center text-base font-bold capitalize text-gray-800 sm:text-lg">
+              {title}
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => shift(1)}
+              aria-label="Mes siguiente"
+              className="h-9 w-9 shrink-0 rounded-full text-rose-600 hover:bg-pink-50"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </Button>
+          </div>
+          <Button
+            onClick={() => {
+              setNavDir(0)
+              setCurrentDate(new Date())
+            }}
+            className="h-8 shrink-0 rounded-full bg-gradient-to-r from-rose-500 to-pink-500 px-4 text-xs font-bold text-white shadow hover:from-rose-600 hover:to-pink-600"
+          >
+            Today
+          </Button>
+        </div>
+      ) : (
+        <div className="rounded-2xl bg-white/75 px-4 py-2.5 text-center font-quick text-lg font-bold text-gray-800 shadow-sm backdrop-blur-md">
+          Agenda
+        </div>
+      )}
 
       {/* switcher de vistas — pill rosa degradado sobre glass (legible en cualquier clima) */}
       <div className="grid grid-cols-4 gap-1 rounded-2xl bg-white/55 p-1 shadow-sm backdrop-blur-md">
