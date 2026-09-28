@@ -31,10 +31,13 @@ import {
   Pencil,
   Check,
   RotateCcw,
+  Loader2,
 } from "lucide-react"
 import { useSharedPlans, type Plan } from "@/hooks/useSharedPlans"
 import { useNotifications } from "@/hooks/useNotifications"
 import { useReminderScheduler } from "@/hooks/useReminderScheduler"
+import { useGoogleCalendar } from "@/hooks/useGoogleCalendar"
+import { GoogleIcon } from "@/components/icons/GoogleIcon"
 import { toDateKey, todayKey, formatKey, addDays, keyFromDate } from "@/lib/date"
 import { occurrencesByDay, upcomingOccurrences, type Occurrence } from "@/lib/calendar/recurrence"
 import { holidaysByDateKey, type Holiday } from "@/lib/calendar/holidays"
@@ -131,8 +134,10 @@ export const SharedCalendar: React.FC = () => {
     deleteFutureFrom,
     isOccurrenceDone,
     toggleOccurrence,
+    refetch,
   } = useSharedPlans({ onPartnerInsert })
   useReminderScheduler(plans, notif.notify)
+  const google = useGoogleCalendar({ onSynced: refetch })
 
   // intent "✓ Done" desde la notificación: /?complete=<planId>&date=<YYYY-MM-DD>
   useEffect(() => {
@@ -276,6 +281,28 @@ export const SharedCalendar: React.FC = () => {
               )}
             </Button>
           )}
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => (google.status?.connected ? google.sync() : google.connect())}
+            disabled={google.connecting || google.syncing}
+            title={
+              google.status?.connected
+                ? `Sincronizar con Google Calendar${google.status.email ? ` (${google.status.email})` : ""}`
+                : "Conectar Google Calendar"
+            }
+            aria-label={google.status?.connected ? "Sincronizar con Google Calendar" : "Conectar Google Calendar"}
+            className="relative rounded-full border-pink-200 hover:bg-pink-50"
+          >
+            {google.connecting || google.syncing ? (
+              <Loader2 className="h-4 w-4 animate-spin text-rose-500" />
+            ) : (
+              <GoogleIcon className="h-4 w-4" />
+            )}
+            {google.status?.connected && !google.syncing && !google.connecting && (
+              <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-emerald-500" />
+            )}
+          </Button>
           {view !== "agenda" ? (
             <>
               <Button
