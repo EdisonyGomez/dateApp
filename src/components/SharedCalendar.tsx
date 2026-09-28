@@ -356,7 +356,7 @@ export const SharedCalendar: React.FC = () => {
     const today = new Date()
     const startingDayOfWeek = new Date(currentYear, currentMonth, 1).getDay()
     const cells: React.ReactNode[] = []
-    for (let i = 0; i < startingDayOfWeek; i++) cells.push(<div key={`e-${i}`} className="h-24" />)
+    for (let i = 0; i < startingDayOfWeek; i++) cells.push(<div key={`e-${i}`} className="h-16 sm:h-24" />)
 
     for (let day = 1; day <= daysInMonth; day++) {
       const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`
@@ -367,13 +367,25 @@ export const SharedCalendar: React.FC = () => {
       const wday = new Date(currentYear, currentMonth, day).getDay()
       const isWeekend = wday === 0 || wday === 6
       // glow del día = color de la categoría del primer evento (da vida + información)
-      const glowColor = dayOccs[0] ? categoryOf(dayOccs[0].plan.category).color : null
+      const topCat = dayOccs[0] ? categoryOf(dayOccs[0].plan.category) : null
+      const glowColor = topCat?.color ?? null
 
       cells.push(
         <div
           key={day}
           onClick={() => setSelectedDay(dateStr)}
-          className={`group relative flex h-24 cursor-pointer flex-col items-center justify-center gap-1.5 overflow-hidden rounded-2xl border p-1.5 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md ${
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault()
+              setSelectedDay(dateStr)
+            }
+          }}
+          aria-label={`${formatKey(dateStr, { day: "numeric", month: "long" })}${
+            dayOccs.length ? `, ${dayOccs.length} event${dayOccs.length !== 1 ? "s" : ""}` : ""
+          }`}
+          className={`group relative flex h-16 cursor-pointer flex-col items-center justify-center gap-0.5 overflow-hidden rounded-xl border p-1 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 sm:h-24 sm:gap-1.5 sm:rounded-2xl sm:p-1.5 ${
             isToday
               ? "cal-day-today border-rose-300 bg-gradient-to-br from-rose-100 to-pink-100"
               : isWeekend
@@ -390,7 +402,7 @@ export const SharedCalendar: React.FC = () => {
 
           {/* feriados: banderita en la esquina → abre el detalle del feriado */}
           {dayHolidays.length > 0 && (
-            <div className="absolute right-1 top-1 z-20 flex gap-0.5">
+            <div className="absolute right-0.5 top-0.5 z-20 flex gap-0.5 sm:right-1 sm:top-1">
               {dayHolidays.slice(0, 2).map((hol, i) => (
                 <button
                   key={`h-${i}`}
@@ -399,7 +411,7 @@ export const SharedCalendar: React.FC = () => {
                     e.stopPropagation()
                     setSelectedHoliday(hol)
                   }}
-                  className={`rounded px-1 text-[9px] font-bold uppercase leading-tight shadow-sm transition hover:scale-110 ${
+                  className={`rounded px-0.5 text-[8px] font-bold uppercase leading-tight shadow-sm transition hover:scale-110 sm:px-1 sm:text-[9px] ${
                     hol.country === "CO" ? "bg-amber-200 text-amber-800" : "bg-blue-200 text-blue-800"
                   }`}
                   title={`${hol.flag} ${hol.name}`}
@@ -410,10 +422,30 @@ export const SharedCalendar: React.FC = () => {
             </div>
           )}
 
-          <span className={`font-quick relative z-10 text-base font-bold ${isToday ? "text-rose-700" : "text-gray-700"}`}>{day}</span>
+          <span className={`font-quick relative z-10 text-sm font-bold leading-none sm:text-base ${isToday ? "text-rose-700" : "text-gray-700"}`}>{day}</span>
 
-          {/* puntos de eventos, coloreados por categoría */}
-          <div className="relative z-10 flex h-2 items-center justify-center gap-1">
+          {/* MÓVIL: chip compacto — 1 evento = punto; 2+ = contador con el color de la categoría dominante */}
+          {dayOccs.length > 0 && topCat && (
+            <div className="relative z-10 flex items-center justify-center sm:hidden">
+              {dayOccs.length === 1 ? (
+                <span
+                  className={`h-1.5 w-1.5 rounded-full ${dayOccs[0].plan.completed ? "opacity-40" : ""}`}
+                  style={{ backgroundColor: topCat.color, boxShadow: `0 0 5px ${topCat.color}` }}
+                />
+              ) : (
+                <span
+                  className="flex items-center gap-0.5 rounded-full px-1 py-0.5 text-[9px] font-bold leading-none shadow-sm"
+                  style={{ backgroundColor: topCat.soft, color: topCat.color }}
+                >
+                  <span className="h-1 w-1 rounded-full" style={{ backgroundColor: topCat.color }} />
+                  {dayOccs.length}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* DESKTOP: fila de puntos, coloreados por categoría */}
+          <div className="relative z-10 hidden h-2 items-center justify-center gap-1 sm:flex">
             {dayOccs.slice(0, 5).map((occ, i) => {
               const c = categoryOf(occ.plan.category).color
               return (
@@ -434,15 +466,15 @@ export const SharedCalendar: React.FC = () => {
 
     return (
       <div className="space-y-3">
-        <div className="grid grid-cols-7 gap-1.5">
+        <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
           {WEEKDAYS.map((d) => (
-            <div key={d} className="py-2 text-center text-sm font-semibold text-gray-500">
+            <div key={d} className="py-1.5 text-center text-[11px] font-semibold text-gray-500 sm:py-2 sm:text-sm">
               {d}
             </div>
           ))}
         </div>
-        <div className="grid grid-cols-7 gap-2 rounded-3xl bg-gradient-to-br from-white/40 to-pink-50/20 p-2">{cells}</div>
-        <div className="flex items-center justify-center gap-4 text-xs text-gray-500">
+        <div className="grid grid-cols-7 gap-1 rounded-2xl bg-gradient-to-br from-white/40 to-pink-50/20 p-1 sm:gap-2 sm:rounded-3xl sm:p-2">{cells}</div>
+        <div className="flex flex-wrap items-center justify-center gap-3 text-xs text-gray-500 sm:gap-4">
           <span className="flex items-center gap-1">
             <span className="h-3 w-3 rounded bg-amber-100" /> 🇨🇴 Colombia holiday
           </span>
@@ -629,7 +661,7 @@ export const SharedCalendar: React.FC = () => {
 
   return (
     <>
-      <Card className="relative overflow-hidden rounded-3xl border border-pink-100 bg-white/80 p-6 shadow-xl backdrop-blur-sm sm:p-8">
+      <Card className="relative overflow-hidden rounded-3xl border border-pink-100 bg-white/80 p-4 shadow-xl backdrop-blur-sm sm:p-8">
         <AmbientCanvas />
         <CardContent className="relative z-10 p-0">
           {showForm ? (
